@@ -24,7 +24,7 @@ import java.lang.ref.WeakReference;
  *
  * @param <V> value type
  */
-public class CachedValueWeakReference<V> extends WeakReference<V> {
+public class CachedValueWeakReference<V> extends WeakReference<V> implements CachedValueReference {
 
     private final CachedValue<?, ?> owner;
     
@@ -33,6 +33,7 @@ public class CachedValueWeakReference<V> extends WeakReference<V> {
         this.owner = owner;
     }
     
+    @Override
     public CachedValue<?, ?> getOwner() {
         return owner;
     }

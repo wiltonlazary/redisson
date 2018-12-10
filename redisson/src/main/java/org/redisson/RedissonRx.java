@@ -50,6 +50,7 @@ import org.redisson.api.RSetCacheRx;
 import org.redisson.api.RSetMultimapRx;
 import org.redisson.api.RSetRx;
 import org.redisson.api.RStreamRx;
+import org.redisson.api.RTopic;
 import org.redisson.api.RTopicRx;
 import org.redisson.api.RTransactionRx;
 import org.redisson.api.RedissonRxClient;
@@ -64,6 +65,8 @@ import org.redisson.pubsub.SemaphorePubSub;
 import org.redisson.rx.CommandRxExecutor;
 import org.redisson.rx.CommandRxService;
 import org.redisson.rx.RedissonBatchRx;
+import org.redisson.rx.RedissonBlockingDequeRx;
+import org.redisson.rx.RedissonBlockingQueueRx;
 import org.redisson.rx.RedissonKeysRx;
 import org.redisson.rx.RedissonLexSortedSetRx;
 import org.redisson.rx.RedissonListMultimapRx;
@@ -75,6 +78,7 @@ import org.redisson.rx.RedissonScoredSortedSetRx;
 import org.redisson.rx.RedissonSetCacheRx;
 import org.redisson.rx.RedissonSetMultimapRx;
 import org.redisson.rx.RedissonSetRx;
+import org.redisson.rx.RedissonTopicRx;
 import org.redisson.rx.RedissonTransactionRx;
 import org.redisson.rx.RxProxyBuilder;
 
@@ -222,41 +226,41 @@ public class RedissonRx implements RedissonRxClient {
     @Override
     public <K, V> RSetMultimapRx<K, V> getSetMultimap(String name) {
         return RxProxyBuilder.create(commandExecutor, new RedissonSetMultimap<K, V>(commandExecutor, name), 
-                new RedissonSetMultimapRx<K, V>(commandExecutor, name), RSetMultimapRx.class);
+                new RedissonSetMultimapRx<K, V>(commandExecutor, name, this), RSetMultimapRx.class);
     }
 
     @Override
     public <K, V> RSetMultimapRx<K, V> getSetMultimap(String name, Codec codec) {
         return RxProxyBuilder.create(commandExecutor, new RedissonSetMultimap<K, V>(codec, commandExecutor, name), 
-                new RedissonSetMultimapRx<K, V>(codec, commandExecutor, name), RSetMultimapRx.class);
+                new RedissonSetMultimapRx<K, V>(codec, commandExecutor, name, this), RSetMultimapRx.class);
     }
 
     @Override
     public <K, V> RMapRx<K, V> getMap(String name) {
         RedissonMap<K, V> map = new RedissonMap<K, V>(commandExecutor, name, null, null);
         return RxProxyBuilder.create(commandExecutor, map, 
-                new RedissonMapRx<K, V>(map), RMapRx.class);
+                new RedissonMapRx<K, V>(map, this), RMapRx.class);
     }
 
     @Override
     public <K, V> RMapRx<K, V> getMap(String name, Codec codec) {
         RedissonMap<K, V> map = new RedissonMap<K, V>(codec, commandExecutor, name, null, null);
         return RxProxyBuilder.create(commandExecutor, map, 
-                new RedissonMapRx<K, V>(map), RMapRx.class);
+                new RedissonMapRx<K, V>(map, this), RMapRx.class);
     }
 
     @Override
     public <V> RSetRx<V> getSet(String name) {
         RedissonSet<V> set = new RedissonSet<V>(commandExecutor, name, null);
         return RxProxyBuilder.create(commandExecutor, set, 
-                new RedissonSetRx<V>(set), RSetRx.class);
+                new RedissonSetRx<V>(set, this), RSetRx.class);
     }
 
     @Override
     public <V> RSetRx<V> getSet(String name, Codec codec) {
         RedissonSet<V> set = new RedissonSet<V>(codec, commandExecutor, name, null);
         return RxProxyBuilder.create(commandExecutor, set, 
-                new RedissonSetRx<V>(set), RSetRx.class);
+                new RedissonSetRx<V>(set, this), RSetRx.class);
     }
 
     @Override
@@ -282,12 +286,14 @@ public class RedissonRx implements RedissonRxClient {
 
     @Override
     public RTopicRx getTopic(String name) {
-        return RxProxyBuilder.create(commandExecutor, new RedissonTopic(commandExecutor, name), RTopicRx.class);
+        RTopic topic = new RedissonTopic(commandExecutor, name);
+        return RxProxyBuilder.create(commandExecutor, topic, new RedissonTopicRx(topic), RTopicRx.class);
     }
 
     @Override
     public RTopicRx getTopic(String name, Codec codec) {
-        return RxProxyBuilder.create(commandExecutor, new RedissonTopic(codec, commandExecutor, name), RTopicRx.class);
+        RTopic topic = new RedissonTopic(codec, commandExecutor, name);
+        return RxProxyBuilder.create(commandExecutor, topic, new RedissonTopicRx(topic), RTopicRx.class);
     }
 
     @Override
@@ -316,14 +322,14 @@ public class RedissonRx implements RedissonRxClient {
     public <V> RBlockingQueueRx<V> getBlockingQueue(String name) {
         RedissonBlockingQueue<V> queue = new RedissonBlockingQueue<V>(commandExecutor, name, null);
         return RxProxyBuilder.create(commandExecutor, queue, 
-                new RedissonListRx<V>(queue), RBlockingQueueRx.class);
+                new RedissonBlockingQueueRx<V>(queue), RBlockingQueueRx.class);
     }
 
     @Override
     public <V> RBlockingQueueRx<V> getBlockingQueue(String name, Codec codec) {
         RedissonBlockingQueue<V> queue = new RedissonBlockingQueue<V>(codec, commandExecutor, name, null);
         return RxProxyBuilder.create(commandExecutor, queue, 
-                new RedissonListRx<V>(queue), RBlockingQueueRx.class);
+                new RedissonBlockingQueueRx<V>(queue), RBlockingQueueRx.class);
     }
 
     @Override
@@ -344,14 +350,14 @@ public class RedissonRx implements RedissonRxClient {
     public <V> RSetCacheRx<V> getSetCache(String name) {
         RSetCache<V> set = new RedissonSetCache<V>(evictionScheduler, commandExecutor, name, null);
         return RxProxyBuilder.create(commandExecutor, set, 
-                new RedissonSetCacheRx<V>(set), RSetCacheRx.class);
+                new RedissonSetCacheRx<V>(set, this), RSetCacheRx.class);
     }
 
     @Override
     public <V> RSetCacheRx<V> getSetCache(String name, Codec codec) {
         RSetCache<V> set = new RedissonSetCache<V>(codec, evictionScheduler, commandExecutor, name, null);
         return RxProxyBuilder.create(commandExecutor, set, 
-                new RedissonSetCacheRx<V>(set), RSetCacheRx.class);
+                new RedissonSetCacheRx<V>(set, this), RSetCacheRx.class);
     }
 
     @Override
@@ -454,7 +460,7 @@ public class RedissonRx implements RedissonRxClient {
     public <K, V> RMapRx<K, V> getMap(String name, MapOptions<K, V> options) {
         RedissonMap<K, V> map = new RedissonMap<K, V>(commandExecutor, name, null, options);
         return RxProxyBuilder.create(commandExecutor, map, 
-                new RedissonMapRx<K, V>(map), RMapRx.class);
+                new RedissonMapRx<K, V>(map, this), RMapRx.class);
     }
 
 
@@ -462,7 +468,7 @@ public class RedissonRx implements RedissonRxClient {
     public <K, V> RMapRx<K, V> getMap(String name, Codec codec, MapOptions<K, V> options) {
         RedissonMap<K, V> map = new RedissonMap<K, V>(codec, commandExecutor, name, null, options);
         return RxProxyBuilder.create(commandExecutor, map, 
-                new RedissonMapRx<K, V>(map), RMapRx.class);
+                new RedissonMapRx<K, V>(map, this), RMapRx.class);
     }
 
     @Override
@@ -474,14 +480,14 @@ public class RedissonRx implements RedissonRxClient {
     public <V> RBlockingDequeRx<V> getBlockingDeque(String name) {
         RedissonBlockingDeque<V> deque = new RedissonBlockingDeque<V>(commandExecutor, name, null);
         return RxProxyBuilder.create(commandExecutor, deque, 
-                new RedissonListRx<V>(deque), RBlockingDequeRx.class);
+                new RedissonBlockingDequeRx<V>(deque), RBlockingDequeRx.class);
     }
 
     @Override
     public <V> RBlockingDequeRx<V> getBlockingDeque(String name, Codec codec) {
         RedissonBlockingDeque<V> deque = new RedissonBlockingDeque<V>(codec, commandExecutor, name, null);
         return RxProxyBuilder.create(commandExecutor, deque, 
-                new RedissonListRx<V>(deque), RBlockingDequeRx.class);
+                new RedissonBlockingDequeRx<V>(deque), RBlockingDequeRx.class);
     }
     
 }

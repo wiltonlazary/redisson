@@ -53,6 +53,10 @@ public class PubSubConnectionEntry {
         this.subscribedChannelsAmount = new AtomicInteger(subscriptionsPerConnection);
     }
 
+    public int countListeners() {
+        return channelListeners.size();
+    }
+    
     public boolean hasListeners(ChannelName channelName) {
         return channelListeners.containsKey(channelName);
     }
@@ -100,7 +104,7 @@ public class PubSubConnectionEntry {
         for (RedisPubSubListener<?> listener : listeners) {
             removeListener(channelName, listener);
         }
-        return !listeners.isEmpty();
+        return listeners.isEmpty();
     }
     
     // TODO optimize

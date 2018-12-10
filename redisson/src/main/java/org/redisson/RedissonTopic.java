@@ -28,12 +28,12 @@ import org.redisson.client.RedisPubSubListener;
 import org.redisson.client.RedisTimeoutException;
 import org.redisson.client.codec.Codec;
 import org.redisson.client.protocol.RedisCommands;
-import org.redisson.client.protocol.pubsub.PubSubType;
 import org.redisson.command.CommandAsyncExecutor;
 import org.redisson.config.MasterSlaveServersConfig;
 import org.redisson.misc.RPromise;
 import org.redisson.misc.RedissonObjectFactory;
 import org.redisson.misc.RedissonPromise;
+import org.redisson.misc.TransferListener;
 import org.redisson.pubsub.AsyncSemaphore;
 import org.redisson.pubsub.PubSubConnectionEntry;
 import org.redisson.pubsub.PublishSubscribeService;
@@ -67,7 +67,7 @@ public class RedissonTopic implements RTopic {
         this.codec = codec;
         this.subscribeService = commandExecutor.getConnectionManager().getSubscribeService();
     }
-
+    
     @Override
     public List<String> getChannelNames() {
         return Collections.singletonList(name);
@@ -146,7 +146,20 @@ public class RedissonTopic implements RTopic {
 
     @Override
     public void removeAllListeners() {
-        subscribeService.unsubscribe(channelName, PubSubType.UNSUBSCRIBE);
+        AsyncSemaphore semaphore = subscribeService.getSemaphore(channelName);
+        acquire(semaphore);
+        
+        PubSubConnectionEntry entry = subscribeService.getPubSubEntry(channelName);
+        if (entry == null) {
+            semaphore.release();
+            return;
+        }
+
+        if (entry.removeAllListeners(channelName)) {
+            subscribeService.unsubscribe(channelName, semaphore).syncUninterruptibly();
+        } else {
+            semaphore.release();
+        }
     }
 
     protected void acquire(AsyncSemaphore semaphore) {
@@ -178,6 +191,61 @@ public class RedissonTopic implements RTopic {
     }
     
     @Override
+    public RFuture<Void> removeListenerAsync(final MessageListener<?> listener) {
+        final RPromise<Void> promise = new RedissonPromise<Void>();
+        final AsyncSemaphore semaphore = subscribeService.getSemaphore(channelName);
+        semaphore.acquire(new Runnable() {
+            @Override
+            public void run() {
+                PubSubConnectionEntry entry = subscribeService.getPubSubEntry(channelName);
+                if (entry == null) {
+                    semaphore.release();
+                    promise.trySuccess(null);
+                    return;
+                }
+                
+                entry.removeListener(channelName, listener);
+                if (!entry.hasListeners(channelName)) {
+                    subscribeService.unsubscribe(channelName, semaphore)
+                        .addListener(new TransferListener<Void>(promise));
+                } else {
+                    semaphore.release();
+                    promise.trySuccess(null);
+                }
+                
+            }
+        });
+        return promise;
+    }
+
+    @Override
+    public RFuture<Void> removeListenerAsync(final int listenerId) {
+        final RPromise<Void> promise = new RedissonPromise<Void>();
+        final AsyncSemaphore semaphore = subscribeService.getSemaphore(channelName);
+        semaphore.acquire(new Runnable() {
+            @Override
+            public void run() {
+                PubSubConnectionEntry entry = subscribeService.getPubSubEntry(channelName);
+                if (entry == null) {
+                    semaphore.release();
+                    promise.trySuccess(null);
+                    return;
+                }
+
+                entry.removeListener(channelName, listenerId);
+                if (!entry.hasListeners(channelName)) {
+                    subscribeService.unsubscribe(channelName, semaphore)
+                        .addListener(new TransferListener<Void>(promise));
+                } else {
+                    semaphore.release();
+                    promise.trySuccess(null);
+                }
+            }
+        });
+        return promise;
+    }
+    
+    @Override
     public void removeListener(int listenerId) {
         AsyncSemaphore semaphore = subscribeService.getSemaphore(channelName);
         acquire(semaphore);
@@ -194,6 +262,15 @@ public class RedissonTopic implements RTopic {
         } else {
             semaphore.release();
         }
+    }
+
+    @Override
+    public int countListeners() {
+        PubSubConnectionEntry entry = subscribeService.getPubSubEntry(channelName);
+        if (entry != null) {
+            return entry.countListeners();
+        }
+        return 0;
     }
 
 }

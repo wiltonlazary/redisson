@@ -7,7 +7,9 @@ import java.io.IOException;
 import java.io.Serializable;
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.LinkedList;
 import java.util.List;
+import java.util.Queue;
 import java.util.UUID;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.ExecutorService;
@@ -26,7 +28,6 @@ import org.junit.BeforeClass;
 import org.junit.Test;
 import org.redisson.ClusterRunner.ClusterProcesses;
 import org.redisson.RedisRunner.RedisProcess;
-import org.redisson.RedissonTopicPatternTest.Message;
 import org.redisson.api.RFuture;
 import org.redisson.api.RPatternTopic;
 import org.redisson.api.RSet;
@@ -104,6 +105,20 @@ public class RedissonTopicTest {
             return true;
         }
 
+    }
+    
+    @Test
+    public void testCountListeners() {
+        RedissonClient redisson = BaseTest.createInstance();
+        RTopic topic1 = redisson.getTopic("topic", LongCodec.INSTANCE);
+        assertThat(topic1.countListeners()).isZero();
+        int id = topic1.addListener(Long.class, (channel, msg) -> {
+        });
+        assertThat(topic1.countListeners()).isOne();
+        topic1.removeListener(id);
+        assertThat(topic1.countListeners()).isZero();
+
+        redisson.shutdown();
     }
     
     @Test
@@ -369,9 +384,11 @@ public class RedissonTopicTest {
     public void testRemoveAllListeners() throws InterruptedException {
         RedissonClient redisson = BaseTest.createInstance();
         RTopic topic1 = redisson.getTopic("topic1");
+        AtomicInteger counter = new AtomicInteger();
+        
         for (int i = 0; i < 10; i++) {
             topic1.addListener(Message.class, (channel, msg) -> {
-                Assert.fail();
+                counter.incrementAndGet();
             });
         }
 
@@ -379,6 +396,81 @@ public class RedissonTopicTest {
         topic1.removeAllListeners();
         topic1.publish(new Message("123"));
 
+        Thread.sleep(1000);
+        assertThat(counter.get()).isZero();
+        
+        redisson.shutdown();
+    }
+
+    @Test
+    public void testSubscribeLimit() throws Exception {
+        RedisProcess runner = new RedisRunner()
+                .port(RedisRunner.findFreePort())
+                .nosave()
+                .randomDir()
+                .run();
+        
+        int connection = 10;
+        int subscription = 5;
+        Config config = new Config();
+        config.useSingleServer()
+                .setAddress("redis://localhost:" + runner.getRedisServerPort())
+                .setSubscriptionConnectionPoolSize(connection)
+                .setSubscriptionsPerConnection(subscription);
+        RedissonClient redissonClient = Redisson.create(config);
+        final Queue<RTopic> queue = new LinkedList<>();
+        int i = 0;
+        boolean timeout = false;
+        while (true) {
+           try{
+              if (timeout) {
+                  System.out.println("destroy");
+                  queue.poll().removeAllListeners();
+              }
+              RTopic topic = redissonClient.getTopic(++i + "");
+                topic.addListener(Object.class, new MessageListener<Object>() {
+                    @Override
+                    public void onMessage(CharSequence channel, Object msg) {
+                        // TODO Auto-generated method stub
+
+                    }
+                });
+              queue.offer(topic);
+              if (i > 1000) {
+                  break;
+              }
+              System.out.println(i + " - " + queue.size());
+           }catch(Exception e){
+                timeout = true;
+                e.printStackTrace();
+           }
+        }
+        
+        redissonClient.shutdown();
+        runner.stop();
+    }
+    
+    @Test
+    public void testRemoveAllListeners2() throws InterruptedException {
+        RedissonClient redisson = BaseTest.createInstance();
+        RTopic topic1 = redisson.getTopic("topic1");
+        AtomicInteger counter = new AtomicInteger();
+        
+        for (int j = 0; j < 100; j++) {
+            for (int i = 0; i < 10; i++) {
+                topic1.addListener(Message.class, (channel, msg) -> {
+                    counter.incrementAndGet();
+                });
+            }
+            
+            topic1 = redisson.getTopic("topic1");
+            topic1.removeAllListeners();
+            topic1.publish(new Message("123"));
+        }
+
+        Thread.sleep(1000);
+        assertThat(counter.get()).isZero();
+        
         redisson.shutdown();
     }
     
