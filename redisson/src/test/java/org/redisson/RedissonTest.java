@@ -433,7 +433,7 @@ public class RedissonTest {
         
         System.out.println("master " + master.getRedisServerAddressAndPort() + " has been stopped!");
         
-        Thread.sleep(TimeUnit.SECONDS.toMillis(20));
+        Thread.sleep(TimeUnit.SECONDS.toMillis(30));
         
         RedisProcess newMaster = null;
         Collection<ClusterNode> newMasterNodes = redisson.getClusterNodesGroup().getNodes(NodeType.MASTER);
@@ -948,15 +948,6 @@ public class RedissonTest {
     public void testClusterConnectionFail() throws InterruptedException {
         Config config = new Config();
         config.useClusterServers().addNodeAddress("redis://127.99.0.1:1111");
-        Redisson.create(config);
-
-        Thread.sleep(1500);
-    }
-
-    @Test(expected = RedisConnectionException.class)
-    public void testElasticacheConnectionFail() throws InterruptedException {
-        Config config = new Config();
-        config.useElasticacheServers().addNodeAddress("redis://127.99.0.1:1111");
         Redisson.create(config);
 
         Thread.sleep(1500);

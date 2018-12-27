@@ -112,7 +112,7 @@ public class RedissonObjectFactory {
                 REntity anno = ClassUtils.getAnnotation(type, REntity.class);
                 NamingScheme ns = anno.namingScheme()
                         .getDeclaredConstructor(Codec.class)
-                        .newInstance(codecProvider.getCodec(anno, type));
+                        .newInstance(codecProvider.getCodec(anno, type, redisson.getConfig()));
                 Object id = ns.resolveId(rr.getKeyName());
                 return liveObjectService.createLiveObject(type, id);
             }
@@ -171,14 +171,18 @@ public class RedissonObjectFactory {
             Class<?> clazz = object.getClass().getInterfaces()[0];
             
             RObject rObject = ((RObject) object);
-            config.getReferenceCodecProvider().registerCodec((Class) rObject.getCodec().getClass(), rObject.getCodec());
+            if (rObject.getCodec() != null) {
+                config.getReferenceCodecProvider().registerCodec((Class) rObject.getCodec().getClass(), rObject.getCodec());
+            }
             return new RedissonReference(clazz, rObject.getName(), rObject.getCodec());
         }
         if (object instanceof RObjectReactive && !(object instanceof RLiveObject)) {
             Class<?> clazz = object.getClass().getInterfaces()[0];
 
             RObjectReactive rObject = ((RObjectReactive) object);
-            config.getReferenceCodecProvider().registerCodec((Class) rObject.getCodec().getClass(), rObject.getCodec());
+            if (rObject.getCodec() != null) {
+                config.getReferenceCodecProvider().registerCodec((Class) rObject.getCodec().getClass(), rObject.getCodec());
+            }
             return new RedissonReference(clazz, rObject.getName(), rObject.getCodec());
         }
         
@@ -188,7 +192,7 @@ public class RedissonObjectFactory {
                 REntity anno = ClassUtils.getAnnotation(rEntity, REntity.class);
                 NamingScheme ns = anno.namingScheme()
                         .getDeclaredConstructor(Codec.class)
-                        .newInstance(config.getReferenceCodecProvider().getCodec(anno, (Class) rEntity));
+                        .newInstance(config.getReferenceCodecProvider().getCodec(anno, (Class) rEntity, config));
                 String name = Introspectior
                         .getFieldsWithAnnotation(rEntity, RId.class)
                         .getOnly().getName();

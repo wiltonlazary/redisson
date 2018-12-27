@@ -25,12 +25,10 @@ import java.util.concurrent.ExecutorService;
 import org.redisson.client.codec.Codec;
 import org.redisson.codec.DefaultReferenceCodecProvider;
 import org.redisson.codec.FstCodec;
-import org.redisson.codec.JsonJacksonCodec;
 import org.redisson.codec.ReferenceCodecProvider;
-import org.redisson.connection.ConnectionManager;
-import org.redisson.connection.DnsAddressResolverGroupFactory;
-import org.redisson.connection.MultiDnsAddressResolverGroupFactory;
 import org.redisson.connection.AddressResolverGroupFactory;
+import org.redisson.connection.ConnectionManager;
+import org.redisson.connection.MultiDnsAddressResolverGroupFactory;
 import org.redisson.connection.ReplicatedConnectionManager;
 import org.redisson.misc.URIBuilder;
 
@@ -51,8 +49,6 @@ public class Config {
     private SingleServerConfig singleServerConfig;
 
     private ClusterServersConfig clusterServersConfig;
-
-    private ElasticacheServersConfig elasticacheServersConfig;
 
     private ReplicatedServersConfig replicatedServersConfig;
     
@@ -106,13 +102,11 @@ public class Config {
     }
 
     public Config(Config oldConf) {
-        setUseLinuxNativeEpoll(oldConf.isUseLinuxNativeEpoll());
         setExecutor(oldConf.getExecutor());
 
         if (oldConf.getCodec() == null) {
             // use it by default
-            oldConf.setCodec(new JsonJacksonCodec());
-//            oldConf.setCodec(new FstCodec());
+            oldConf.setCodec(new FstCodec());
         }
 
         setUseScriptCache(oldConf.isUseScriptCache());
@@ -138,9 +132,6 @@ public class Config {
         }
         if (oldConf.getClusterServersConfig() != null) {
             setClusterServersConfig(new ClusterServersConfig(oldConf.getClusterServersConfig()));
-        }
-        if (oldConf.getElasticacheServersConfig() != null) {
-            setElasticacheServersConfig(new ElasticacheServersConfig(oldConf.getElasticacheServersConfig()));
         }
         if (oldConf.getReplicatedServersConfig() != null) {
             setReplicatedServersConfig(new ReplicatedServersConfig(oldConf.getReplicatedServersConfig()));
@@ -225,7 +216,6 @@ public class Config {
         checkMasterSlaveServersConfig();
         checkSentinelServersConfig();
         checkSingleServerConfig();
-        checkElasticacheServersConfig();
         checkReplicatedServersConfig();
 
         if (clusterServersConfig == null) {
@@ -243,37 +233,6 @@ public class Config {
     }
 
     /**
-     *
-     * Use {@link #useReplicatedServers()}
-     * 
-     * @return config object
-     */
-    @Deprecated
-    public ElasticacheServersConfig useElasticacheServers() {
-        return useElasticacheServers(new ElasticacheServersConfig());
-    }
-
-    ElasticacheServersConfig useElasticacheServers(ElasticacheServersConfig config) {
-        checkClusterServersConfig();
-        checkMasterSlaveServersConfig();
-        checkSentinelServersConfig();
-        checkSingleServerConfig();
-
-        if (elasticacheServersConfig == null) {
-            elasticacheServersConfig = new ElasticacheServersConfig();
-        }
-        return elasticacheServersConfig;
-    }
-
-    ElasticacheServersConfig getElasticacheServersConfig() {
-        return elasticacheServersConfig;
-    }
-
-    void setElasticacheServersConfig(ElasticacheServersConfig elasticacheServersConfig) {
-        this.elasticacheServersConfig = elasticacheServersConfig;
-    }
-
-    /**
      * Init Replicated servers configuration.
      * Most used with Azure Redis Cache or AWS Elasticache
      *
@@ -288,7 +247,6 @@ public class Config {
         checkMasterSlaveServersConfig();
         checkSentinelServersConfig();
         checkSingleServerConfig();
-        checkElasticacheServersConfig();
 
         if (replicatedServersConfig == null) {
             replicatedServersConfig = new ReplicatedServersConfig();
@@ -339,7 +297,6 @@ public class Config {
         checkClusterServersConfig();
         checkMasterSlaveServersConfig();
         checkSentinelServersConfig();
-        checkElasticacheServersConfig();
         checkReplicatedServersConfig();
 
         if (singleServerConfig == null) {
@@ -369,7 +326,6 @@ public class Config {
         checkClusterServersConfig();
         checkSingleServerConfig();
         checkMasterSlaveServersConfig();
-        checkElasticacheServersConfig();
         checkReplicatedServersConfig();
 
         if (this.sentinelServersConfig == null) {
@@ -399,7 +355,6 @@ public class Config {
         checkClusterServersConfig();
         checkSingleServerConfig();
         checkSentinelServersConfig();
-        checkElasticacheServersConfig();
         checkReplicatedServersConfig();
 
         if (masterSlaveServersConfig == null) {
@@ -469,12 +424,6 @@ public class Config {
         }
     }
 
-    private void checkElasticacheServersConfig() {
-        if (elasticacheServersConfig != null) {
-            throw new IllegalStateException("elasticache replication group servers config already used!");
-        }
-    }
-
     private void checkReplicatedServersConfig() {
         if (replicatedServersConfig != null) {
             throw new IllegalStateException("Replication servers config already used!");
@@ -497,21 +446,6 @@ public class Config {
         return transportMode;
     }
     
-    /**
-     * Use {@link #setTransportMode(TransportMode)}
-     */
-    @Deprecated
-    public Config setUseLinuxNativeEpoll(boolean useLinuxNativeEpoll) {
-        if (useLinuxNativeEpoll) {
-            setTransportMode(TransportMode.EPOLL);
-        }
-        return this;
-    }
-
-    public boolean isUseLinuxNativeEpoll() {
-        return getTransportMode() == TransportMode.EPOLL;
-    }
-
     /**
      * Threads amount shared between all redis clients used by Redisson.
      * <p>
@@ -583,6 +517,8 @@ public class Config {
      * <p>  
      * This prevents against infinity locked locks due to Redisson client crush or 
      * any other reason when lock can't be released in proper way.
+     * <p>
+     * Default is 30000 milliseconds
      * 
      * @param lockWatchdogTimeout timeout in milliseconds
      * @return config

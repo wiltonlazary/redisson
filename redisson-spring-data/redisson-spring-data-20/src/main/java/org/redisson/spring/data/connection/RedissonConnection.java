@@ -336,7 +336,7 @@ public class RedissonConnection extends AbstractRedisConnection {
         }
 
         Set<byte[]> results = new HashSet<byte[]>();
-        RFuture<Set<byte[]>> f = (RFuture<Set<byte[]>>)(Object)(executorService.readAllAsync(results, KEYS, pattern));
+        RFuture<Set<byte[]>> f = (RFuture<Set<byte[]>>)(Object)(executorService.readAllAsync(results, ByteArrayCodec.INSTANCE, KEYS, pattern));
         return sync(f);
     }
 
@@ -1162,7 +1162,7 @@ public class RedissonConnection extends AbstractRedisConnection {
         return read(key, ByteArrayCodec.INSTANCE, ZREVRANGE, key, start, end);
     }
 
-    private static final RedisCommand<Set<Tuple>> ZREVRANGE_ENTRY = new RedisCommand<Set<Tuple>>("ZRANGE", new ScoredSortedSetReplayDecoder());
+    private static final RedisCommand<Set<Tuple>> ZREVRANGE_ENTRY = new RedisCommand<Set<Tuple>>("ZREVRANGE", new ScoredSortedSetReplayDecoder());
     
     @Override
     public Set<Tuple> zRevRangeWithScores(byte[] key, long start, long end) {

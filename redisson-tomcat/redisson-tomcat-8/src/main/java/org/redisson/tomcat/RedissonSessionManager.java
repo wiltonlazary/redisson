@@ -54,7 +54,7 @@ public class RedissonSessionManager extends ManagerBase {
     private RedissonClient redisson;
     private String configPath;
     
-    private ReadMode readMode = ReadMode.MEMORY;
+    private ReadMode readMode = ReadMode.REDIS;
     private UpdateMode updateMode = UpdateMode.DEFAULT;
 
     private String keyPrefix = "";
@@ -135,7 +135,9 @@ public class RedissonSessionManager extends ManagerBase {
     }
 
     public RTopic getTopic() {
-        return redisson.getTopic("redisson:tomcat_session_updates:" + getContext().getName());
+        String separator = keyPrefix == null || keyPrefix.isEmpty() ? "" : ":";
+        final String name = keyPrefix + separator + "redisson:tomcat_session_updates:" + getContext().getName();
+        return redisson.getTopic(name);
     }
     
     @Override

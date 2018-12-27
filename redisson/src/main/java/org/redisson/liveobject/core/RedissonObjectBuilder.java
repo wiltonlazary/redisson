@@ -84,7 +84,9 @@ public class RedissonObjectBuilder {
 
     public void store(RObject ar, String fieldName, RMap<String, Object> liveMap) {
         Codec codec = ar.getCodec();
-        codecProvider.registerCodec((Class) codec.getClass(), codec);
+        if (codec != null) {
+            codecProvider.registerCodec((Class) codec.getClass(), codec);
+        }
         liveMap.fastPut(fieldName,
                 new RedissonReference(ar.getClass(), ar.getName(), codec));
     }
@@ -120,10 +122,10 @@ public class RedissonObjectBuilder {
         Field field = ClassUtils.getDeclaredField(rEntity, fieldName);
         if (field.isAnnotationPresent(RObjectField.class)) {
             RObjectField anno = field.getAnnotation(RObjectField.class);
-            return codecProvider.getCodec(anno, rEntity, rObjectClass, fieldName);
+            return codecProvider.getCodec(anno, rEntity, rObjectClass, fieldName, redisson.getConfig());
         } else {
             REntity anno = ClassUtils.getAnnotation(rEntity, REntity.class);
-            return codecProvider.getCodec(anno, (Class<?>) rEntity);
+            return codecProvider.getCodec(anno, (Class<?>) rEntity, redisson.getConfig());
         }
     }
     
