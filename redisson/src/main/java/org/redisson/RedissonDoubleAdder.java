@@ -1,5 +1,5 @@
 /**
- * Copyright 2018 Nikita Koksharov
+ * Copyright (c) 2013-2019 Nikita Koksharov
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -15,6 +15,8 @@
  */
 package org.redisson;
 
+import java.util.concurrent.atomic.DoubleAdder;
+
 import org.redisson.api.RAtomicDouble;
 import org.redisson.api.RDoubleAdder;
 import org.redisson.api.RFuture;
@@ -28,7 +30,7 @@ import org.redisson.command.CommandAsyncExecutor;
  */
 public class RedissonDoubleAdder extends RedissonBaseAdder<Double> implements RDoubleAdder {
 
-    private double counter;
+    private final DoubleAdder counter = new DoubleAdder();
     private final RAtomicDouble atomicDouble;
     
     public RedissonDoubleAdder(CommandAsyncExecutor connectionManager, String name, RedissonClient redisson) {
@@ -38,13 +40,13 @@ public class RedissonDoubleAdder extends RedissonBaseAdder<Double> implements RD
     }
 
     @Override
-    protected synchronized void doReset() {
-        counter = 0;
+    protected void doReset() {
+        counter.reset();
     }
     
     @Override
-    protected synchronized RFuture<Double> addAndGetAsync() {
-        return atomicDouble.getAndAddAsync(counter);
+    protected RFuture<Double> addAndGetAsync() {
+        return atomicDouble.getAndAddAsync(counter.sum());
     }
     
     @Override
@@ -53,8 +55,8 @@ public class RedissonDoubleAdder extends RedissonBaseAdder<Double> implements RD
     }
 
     @Override
-    public synchronized void add(double x) {
-        counter += x;
+    public void add(double x) {
+        counter.add(x);
     }
     
     @Override

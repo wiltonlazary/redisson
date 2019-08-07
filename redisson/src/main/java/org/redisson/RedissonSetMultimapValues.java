@@ -1,5 +1,5 @@
 /**
- * Copyright 2018 Nikita Koksharov
+ * Copyright (c) 2013-2019 Nikita Koksharov
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -22,6 +22,7 @@ import java.util.Iterator;
 import java.util.List;
 import java.util.Set;
 import java.util.concurrent.TimeUnit;
+import java.util.stream.Stream;
 
 import org.redisson.api.RCountDownLatch;
 import org.redisson.api.RFuture;
@@ -229,7 +230,7 @@ public class RedissonSetMultimapValues<V> extends RedissonExpirable implements R
 
             @Override
             protected void remove(Object value) {
-                RedissonSetMultimapValues.this.remove((V)value);
+                RedissonSetMultimapValues.this.remove((V) value);
             }
             
         };
@@ -341,7 +342,7 @@ public class RedissonSetMultimapValues<V> extends RedissonExpirable implements R
 
     @Override
     public boolean remove(Object value) {
-        return get(removeAsync((V)value));
+        return get(removeAsync((V) value));
     }
 
     @Override
@@ -773,6 +774,21 @@ public class RedissonSetMultimapValues<V> extends RedissonExpirable implements R
     public RFuture<Integer> sortToAsync(String destName, String byPattern, List<String> getPatterns, SortOrder order,
             int offset, int count) {
         return set.sortToAsync(destName, byPattern, getPatterns, order, offset, count);
+    }
+
+    @Override
+    public Stream<V> stream(int count) {
+        return toStream(iterator(count));
+    }
+
+    @Override
+    public Stream<V> stream(String pattern, int count) {
+        return toStream(iterator(pattern, count));
+    }
+
+    @Override
+    public Stream<V> stream(String pattern) {
+        return toStream(iterator(pattern));
     }
     
 }

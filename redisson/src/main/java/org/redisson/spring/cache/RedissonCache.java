@@ -1,5 +1,5 @@
 /**
- * Copyright 2018 Nikita Koksharov
+ * Copyright (c) 2013-2019 Nikita Koksharov
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -43,8 +43,10 @@ public class RedissonCache implements Cache {
     
     private final AtomicLong hits = new AtomicLong();
 
+    private final AtomicLong puts = new AtomicLong();
+    
     private final AtomicLong misses = new AtomicLong();
-
+    
     public RedissonCache(RMapCache<Object, Object> mapCache, CacheConfig config, boolean allowNullValues) {
         this(mapCache, allowNullValues);
         this.mapCache = mapCache;
@@ -71,7 +73,7 @@ public class RedissonCache implements Cache {
         Object value = map.get(key);
         if (value == null) {
             addCacheMiss();
-        }else{
+        } else {
             addCacheHit();
         }
         return toValueWrapper(value);
@@ -81,7 +83,7 @@ public class RedissonCache implements Cache {
         Object value = map.get(key);
         if (value == null) {
             addCacheMiss();
-        }else{
+        } else {
             addCacheHit();
             if (value.getClass().getName().equals(NullValue.class.getName())) {
                 return null;
@@ -106,6 +108,7 @@ public class RedissonCache implements Cache {
         } else {
             map.fastPut(key, value);
         }
+        addCachePut();
     }
 
     public ValueWrapper putIfAbsent(Object key, Object value) {
@@ -118,6 +121,9 @@ public class RedissonCache implements Cache {
                 prevValue = mapCache.putIfAbsent(key, value, config.getTTL(), TimeUnit.MILLISECONDS, config.getMaxIdleTime(), TimeUnit.MILLISECONDS);
             } else {
                 prevValue = map.putIfAbsent(key, value);
+            }
+            if (prevValue == null) {
+                addCachePut();
             }
         }
         
@@ -153,29 +159,34 @@ public class RedissonCache implements Cache {
             try {
                 value = map.get(key);
                 if (value == null) {
-                    try {
-                        value = toStoreValue(valueLoader.call());
-                    } catch (Throwable ex) {
-                        RuntimeException exception;
-                        try {
-                            Class<?> c = Class.forName("org.springframework.cache.Cache$ValueRetrievalException");
-                            Constructor<?> constructor = c.getConstructor(Object.class, Callable.class, Throwable.class);
-                            exception = (RuntimeException) constructor.newInstance(key, valueLoader, ex);
-                        } catch (Exception e) {
-                            throw new IllegalStateException(e);
-                        }
-                        throw exception;
-                    }
-                    put(key, value);
+                    value = putValue(key, valueLoader, value);
                 }
             } finally {
                 lock.unlock();
             }
-        }else{
+        } else {
             addCacheHit();
         }
         
         return (T) fromStoreValue(value);
+    }
+
+    private <T> Object putValue(Object key, Callable<T> valueLoader, Object value) {
+        try {
+            value = valueLoader.call();
+        } catch (Exception ex) {
+            RuntimeException exception;
+            try {
+                Class<?> c = Class.forName("org.springframework.cache.Cache$ValueRetrievalException");
+                Constructor<?> constructor = c.getConstructor(Object.class, Callable.class, Throwable.class);
+                exception = (RuntimeException) constructor.newInstance(key, valueLoader, ex);
+            } catch (Exception e) {
+                throw new IllegalStateException(e);
+            }
+            throw exception;
+        }
+        put(key, value);
+        return value;
     }
 
     protected Object fromStoreValue(Object storeValue) {
@@ -204,6 +215,14 @@ public class RedissonCache implements Cache {
      */
     long getCacheMisses(){
         return misses.get();
+    }
+    
+    long getCachePuts() {
+        return puts.get();
+    }
+    
+    private void addCachePut() {
+        puts.incrementAndGet();
     }
 
     private void addCacheHit(){

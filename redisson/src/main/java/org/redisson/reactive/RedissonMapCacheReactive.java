@@ -1,5 +1,5 @@
 /**
- * Copyright 2018 Nikita Koksharov
+ * Copyright (c) 2013-2019 Nikita Koksharov
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -22,6 +22,8 @@ import org.reactivestreams.Publisher;
 import org.redisson.RedissonMap;
 import org.redisson.api.RMapCache;
 
+import reactor.core.publisher.Flux;
+
 /**
  *
  * @author Nikita Koksharov
@@ -36,7 +38,7 @@ public class RedissonMapCacheReactive<K, V> {
     public RedissonMapCacheReactive(RMapCache<K, V> mapCache) {
         this.mapCache = mapCache;
     }
-
+    
     public Publisher<Map.Entry<K, V>> entryIterator() {
         return entryIterator(null);
     }
@@ -50,7 +52,7 @@ public class RedissonMapCacheReactive<K, V> {
     }
     
     public Publisher<Map.Entry<K, V>> entryIterator(String pattern, int count) {
-        return new MapReactiveIterator<K, V, Map.Entry<K, V>>((RedissonMap<K, V>) mapCache, pattern, count).stream();
+        return Flux.create(new MapReactiveIterator<K, V, Map.Entry<K, V>>((RedissonMap<K, V>) mapCache, pattern, count));
     }
 
     public Publisher<V> valueIterator() {
@@ -66,12 +68,12 @@ public class RedissonMapCacheReactive<K, V> {
     }
     
     public Publisher<V> valueIterator(String pattern, int count) {
-        return new MapReactiveIterator<K, V, V>((RedissonMap<K, V>) mapCache, pattern, count) {
+        return Flux.create(new MapReactiveIterator<K, V, V>((RedissonMap<K, V>) mapCache, pattern, count) {
             @Override
             V getValue(Entry<Object, Object> entry) {
                 return (V) entry.getValue();
             }
-        }.stream();
+        });
     }
 
     public Publisher<K> keyIterator() {
@@ -87,12 +89,12 @@ public class RedissonMapCacheReactive<K, V> {
     }
     
     public Publisher<K> keyIterator(String pattern, int count) {
-        return new MapReactiveIterator<K, V, K>((RedissonMap<K, V>) mapCache, pattern, count) {
+        return Flux.create(new MapReactiveIterator<K, V, K>((RedissonMap<K, V>) mapCache, pattern, count) {
             @Override
             K getValue(Entry<Object, Object> entry) {
                 return (K) entry.getKey();
             }
-        }.stream();
+        });
     }
 
-}
+            }

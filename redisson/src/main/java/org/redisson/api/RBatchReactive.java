@@ -1,5 +1,5 @@
 /**
- * Copyright 2018 Nikita Koksharov
+ * Copyright (c) 2013-2019 Nikita Koksharov
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -17,8 +17,9 @@ package org.redisson.api;
 
 import java.util.concurrent.TimeUnit;
 
-import org.reactivestreams.Publisher;
 import org.redisson.client.codec.Codec;
+
+import reactor.core.publisher.Mono;
 
 /**
  * Reactive interface for Redis pipeline feature.
@@ -365,14 +366,14 @@ public interface RBatchReactive {
      *
      * @return List with result object for each command
      */
-    Publisher<BatchResult<?>> execute();
+    Mono<BatchResult<?>> execute();
 
     /*
      * Use BatchOptions#atomic
      */
     @Deprecated
     RBatchReactive atomic();
-    
+
     /*
      * Use BatchOptions#skipResult
      */

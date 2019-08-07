@@ -1,5 +1,5 @@
 /**
- * Copyright 2018 Nikita Koksharov
+ * Copyright (c) 2013-2019 Nikita Koksharov
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -15,8 +15,9 @@
  */
 package org.redisson.api;
 
-import org.reactivestreams.Publisher;
 import org.redisson.client.codec.Codec;
+
+import reactor.core.publisher.Mono;
 
 /**
  * Reactive interface for transaction object allows to execute transactions over Redisson objects.
@@ -149,12 +150,12 @@ public interface RTransactionReactive {
      * 
      * @return void
      */
-    Publisher<Void> commit();
+    Mono<Void> commit();
     
     /**
      * Rollback all changes made on this transaction.
      * @return void
      */
-    Publisher<Void> rollback();
+    Mono<Void> rollback();
 
 }

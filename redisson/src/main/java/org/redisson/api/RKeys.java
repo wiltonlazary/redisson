@@ -1,5 +1,5 @@
 /**
- * Copyright 2018 Nikita Koksharov
+ * Copyright (c) 2013-2019 Nikita Koksharov
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -17,6 +17,7 @@ package org.redisson.api;
 
 import java.util.Collection;
 import java.util.concurrent.TimeUnit;
+import java.util.stream.Stream;
 
 /**
  * 
@@ -200,6 +201,60 @@ public interface RKeys extends RKeysAsync {
      * @return Iterable object
      */
     Iterable<String> getKeys(int count);
+
+    /**
+     * Get all keys by pattern using Stream. 
+     * Keys traversed with SCAN operation. Each SCAN operation loads 
+     * up to <b>10</b> keys per request. 
+     * <p>
+     *  Supported glob-style patterns:
+     *  <p>
+     *    h?llo subscribes to hello, hallo and hxllo
+     *    <p>
+     *    h*llo subscribes to hllo and heeeello
+     *    <p>
+     *    h[ae]llo subscribes to hello and hallo, but not hillo
+     * 
+     * @param pattern - match pattern
+     * @return Iterable object
+     */
+    Stream<String> getKeysStreamByPattern(String pattern);
+
+    /**
+     * Get all keys by pattern using Stream. 
+     * Keys traversed with SCAN operation. Each SCAN operation loads 
+     * up to <code>count</code> keys per request. 
+     * <p>
+     *  Supported glob-style patterns:
+     *  <p>
+     *    h?llo subscribes to hello, hallo and hxllo
+     *    <p>
+     *    h*llo subscribes to hllo and heeeello
+     *    <p>
+     *    h[ae]llo subscribes to hello and hallo, but not hillo
+     *
+     * @param pattern - match pattern
+     * @param count - keys loaded per request to Redis
+     * @return Iterable object
+     */
+    Stream<String> getKeysStreamByPattern(String pattern, int count);
+    
+    /**
+     * Get all keys using Stream. Keys traversing with SCAN operation. 
+     * Each SCAN operation loads up to <code>10</code> keys per request. 
+     *
+     * @return Iterable object
+     */
+    Stream<String> getKeysStream();
+
+    /**
+     * Get all keys using Stream. Keys traversing with SCAN operation.
+     * Each SCAN operation loads up to <code>count</code> keys per request.
+     *
+     * @param count - keys loaded per request to Redis
+     * @return Iterable object
+     */
+    Stream<String> getKeysStream(int count);
     
     /**
      * Get random key
@@ -235,7 +290,7 @@ public interface RKeys extends RKeysAsync {
      * @param objects of Redisson
      * @return number of removed keys
      */
-    long delete(RObject ... objects);
+    long delete(RObject... objects);
     
     /**
      * Delete multiple objects by name
@@ -243,7 +298,7 @@ public interface RKeys extends RKeysAsync {
      * @param keys - object names
      * @return number of removed keys
      */
-    long delete(String ... keys);
+    long delete(String... keys);
 
     /**
      * Delete multiple objects by name.
@@ -254,7 +309,7 @@ public interface RKeys extends RKeysAsync {
      * @param keys of objects
      * @return number of removed keys
      */
-    long unlink(String ... keys);
+    long unlink(String... keys);
     
     /**
      * Returns the number of keys in the currently-selected database

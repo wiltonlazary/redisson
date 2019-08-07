@@ -1,5 +1,5 @@
 /**
- * Copyright 2018 Nikita Koksharov
+ * Copyright (c) 2013-2019 Nikita Koksharov
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -22,6 +22,9 @@ import org.redisson.api.RLexSortedSet;
 import org.redisson.client.RedisClient;
 import org.redisson.client.protocol.decoder.ListScanResult;
 
+import reactor.core.publisher.Flux;
+
+
 /**
  * 
  * @author Nikita Koksharov
@@ -39,18 +42,18 @@ public class RedissonLexSortedSetReactive {
         return new PublisherAdder<String>() {
             @Override
             public RFuture<Boolean> add(Object e) {
-                return instance.addAsync((String)e);
+                return instance.addAsync((String) e);
             }
         }.addAll(c);
     }
-    
+
     private Publisher<String> scanIteratorReactive(final String pattern, final int count) {
-        return new SetReactiveIterator<String>() {
+        return Flux.create(new SetReactiveIterator<String>() {
             @Override
             protected RFuture<ListScanResult<Object>> scanIterator(final RedisClient client, final long nextIterPos) {
-                return ((RedissonScoredSortedSet<String>)instance).scanIteratorAsync(client, nextIterPos, pattern, count);
+                return ((RedissonScoredSortedSet<String>) instance).scanIteratorAsync(client, nextIterPos, pattern, count);
             }
-        };
+        });
     }
 
     public Publisher<String> iterator() {

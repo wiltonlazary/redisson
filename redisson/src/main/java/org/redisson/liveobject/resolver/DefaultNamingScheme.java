@@ -1,5 +1,5 @@
 /**
- * Copyright 2018 Nikita Koksharov
+ * Copyright (c) 2013-2019 Nikita Koksharov
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -27,6 +27,7 @@ import io.netty.buffer.Unpooled;
 /**
  *
  * @author Rui Gu (https://github.com/jackygurui)
+ * @author Nikita Koksharov
  */
 public class DefaultNamingScheme extends AbstractNamingScheme implements NamingScheme {
 
@@ -71,7 +72,7 @@ public class DefaultNamingScheme extends AbstractNamingScheme implements NamingS
         
         ByteBuf b = Unpooled.wrappedBuffer(ByteBufUtil.decodeHexDump(decode)); 
         try {
-            return codec.getMapKeyDecoder().decode(b, new State(false));
+            return codec.getMapKeyDecoder().decode(b, new State());
         } catch (IOException ex) {
             throw new IllegalStateException("Unable to decode [" + decode + "] into object", ex);
         } finally {
@@ -85,6 +86,11 @@ public class DefaultNamingScheme extends AbstractNamingScheme implements NamingS
         } finally {
             bytes.release();
         }
+    }
+
+    @Override
+    public String getIndexName(Class<?> entityClass, String fieldName) {
+        return "redisson_live_object_index:{" + entityClass.getName() + "}:" + fieldName;
     }
 
 }

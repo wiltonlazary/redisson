@@ -1,5 +1,5 @@
 /**
- * Copyright 2018 Nikita Koksharov
+ * Copyright (c) 2013-2019 Nikita Koksharov
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -21,6 +21,7 @@ import javax.naming.InitialContext;
 import javax.naming.NamingException;
 
 import org.hibernate.cache.CacheException;
+import org.hibernate.engine.jndi.internal.JndiServiceImpl;
 import org.hibernate.internal.util.config.ConfigurationHelper;
 import org.hibernate.internal.util.jndi.JndiHelper;
 import org.redisson.api.RedissonClient;
@@ -45,7 +46,7 @@ public class JndiRedissonRegionFactory extends RedissonRegionFactory {
             throw new CacheException(JNDI_NAME + " property not set");
         }
         
-        Properties jndiProperties = JndiHelper.extractJndiProperties(properties);
+        Properties jndiProperties = JndiServiceImpl.extractJndiProperties(properties);
         InitialContext context = null;
         try {
             context = new InitialContext(jndiProperties);

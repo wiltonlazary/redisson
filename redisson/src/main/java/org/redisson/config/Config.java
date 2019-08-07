@@ -1,5 +1,5 @@
 /**
- * Copyright 2018 Nikita Koksharov
+ * Copyright (c) 2013-2019 Nikita Koksharov
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -23,14 +23,11 @@ import java.net.URL;
 import java.util.concurrent.ExecutorService;
 
 import org.redisson.client.codec.Codec;
-import org.redisson.codec.DefaultReferenceCodecProvider;
 import org.redisson.codec.FstCodec;
-import org.redisson.codec.ReferenceCodecProvider;
 import org.redisson.connection.AddressResolverGroupFactory;
 import org.redisson.connection.ConnectionManager;
-import org.redisson.connection.MultiDnsAddressResolverGroupFactory;
+import org.redisson.connection.DnsAddressResolverGroupFactory;
 import org.redisson.connection.ReplicatedConnectionManager;
-import org.redisson.misc.URIBuilder;
 
 import io.netty.channel.EventLoopGroup;
 
@@ -51,54 +48,50 @@ public class Config {
     private ClusterServersConfig clusterServersConfig;
 
     private ReplicatedServersConfig replicatedServersConfig;
-    
-    private  ConnectionManager connectionManager;
+
+    private ConnectionManager connectionManager;
 
     /**
      * Threads amount shared between all redis node clients
      */
-    private int threads = 0; // 0 = current_processors_amount * 2
-    
-    private int nettyThreads = 0; // 0 = current_processors_amount * 2
+    private int threads = 16;
+
+    private int nettyThreads = 32;
 
     /**
      * Redis key/value codec. JsonJacksonCodec used by default
      */
     private Codec codec;
-    
-    /**
-     * For codec registry and look up. DefaultCodecProvider used by default
-     */
-    private ReferenceCodecProvider referenceCodecProvider = new DefaultReferenceCodecProvider();
-    
+
     private ExecutorService executor;
-    
+
     /**
      * Config option for enabling Redisson Reference feature.
      * Default value is TRUE
      */
     private boolean referenceEnabled = true;
-    
+
     private TransportMode transportMode = TransportMode.NIO;
 
     private EventLoopGroup eventLoopGroup;
 
     private long lockWatchdogTimeout = 30 * 1000;
-    
+
     private boolean keepPubSubOrder = true;
-    
+
+    private boolean decodeInExecutor = false;
+
     private boolean useScriptCache = false;
+
+    private int minCleanUpDelay = 5;
+    private int maxCleanUpDelay = 30*60;
     
     /**
      * AddressResolverGroupFactory switch between default and round robin
      */
-    private AddressResolverGroupFactory addressResolverGroupFactory = new MultiDnsAddressResolverGroupFactory();
+    private AddressResolverGroupFactory addressResolverGroupFactory = new DnsAddressResolverGroupFactory();
 
     public Config() {
-    }
-    
-    static {
-        URIBuilder.patchUriObject();
     }
 
     public Config(Config oldConf) {
@@ -109,13 +102,15 @@ public class Config {
             oldConf.setCodec(new FstCodec());
         }
 
+        setMinCleanUpDelay(oldConf.getMinCleanUpDelay());
+        setMaxCleanUpDelay(oldConf.getMaxCleanUpDelay());
+        setDecodeInExecutor(oldConf.isDecodeInExecutor());
         setUseScriptCache(oldConf.isUseScriptCache());
         setKeepPubSubOrder(oldConf.isKeepPubSubOrder());
         setLockWatchdogTimeout(oldConf.getLockWatchdogTimeout());
         setNettyThreads(oldConf.getNettyThreads());
         setThreads(oldConf.getThreads());
         setCodec(oldConf.getCodec());
-        setReferenceCodecProvider(oldConf.getReferenceCodecProvider());
         setReferenceEnabled(oldConf.isReferenceEnabled());
         setEventLoopGroup(oldConf.getEventLoopGroup());
         setTransportMode(oldConf.getTransportMode());
@@ -137,7 +132,7 @@ public class Config {
             setReplicatedServersConfig(new ReplicatedServersConfig(oldConf.getReplicatedServersConfig()));
         }
         if (oldConf.getConnectionManager() != null) {
-        	useCustomServers(oldConf.getConnectionManager());
+            useCustomServers(oldConf.getConnectionManager());
         }
 
     }
@@ -158,29 +153,7 @@ public class Config {
     public Codec getCodec() {
         return codec;
     }
-    
-    /**
-     * Reference objects codec provider used for codec registry and look up. 
-     * <code>org.redisson.codec.DefaultReferenceCodecProvider</code> used by default.
-     * 
-     * @param codecProvider object 
-     * @return config
-     * @see org.redisson.codec.ReferenceCodecProvider
-     */
-    public Config setReferenceCodecProvider(ReferenceCodecProvider codecProvider) {
-        this.referenceCodecProvider = codecProvider;
-        return this;
-    }
 
-    /**
-     * Returns the CodecProvider instance
-     * 
-     * @return CodecProvider
-     */
-    public ReferenceCodecProvider getReferenceCodecProvider() {
-        return referenceCodecProvider;
-    }
-    
     /**
      * Config option indicate whether Redisson Reference feature is enabled.
      * <p>
@@ -202,7 +175,7 @@ public class Config {
     public void setReferenceEnabled(boolean redissonReferenceEnabled) {
         this.referenceEnabled = redissonReferenceEnabled;
     }
-    
+
     /**
      * Init cluster servers configuration
      *
@@ -261,28 +234,27 @@ public class Config {
     void setReplicatedServersConfig(ReplicatedServersConfig replicatedServersConfig) {
         this.replicatedServersConfig = replicatedServersConfig;
     }
-    
+
     /**
-	 * Returns the connection manager if supplied via
-	 * {@link #useCustomServers(ConnectionManager)}
-	 * 
-	 * @return ConnectionManager
-	 */
+     * Returns the connection manager if supplied via
+     * {@link #useCustomServers(ConnectionManager)}
+     * 
+     * @return ConnectionManager
+     */
     ConnectionManager getConnectionManager() {
         return connectionManager;
     }
 
     /**
-	 * This is an extension point to supply custom connection manager.
-	 * 
-	 * @see ReplicatedConnectionManager on how to implement a connection
-	 *      manager.
-	 * @param connectionManager for supply
-	 */
+     * This is an extension point to supply custom connection manager.
+     * 
+     * @see ReplicatedConnectionManager on how to implement a connection
+     *      manager.
+     * @param connectionManager for supply
+     */
     public void useCustomServers(ConnectionManager connectionManager) {
         this.connectionManager = connectionManager;
     }
-    
 
     /**
      * Init single server configuration.
@@ -374,7 +346,7 @@ public class Config {
     public boolean isClusterConfig() {
         return clusterServersConfig != null;
     }
-    
+
     public boolean isSentinelConfig() {
         return sentinelServersConfig != null;
     }
@@ -388,7 +360,7 @@ public class Config {
      * invocation handlers of <code>RRemoteService</code> object  
      * and <code>RExecutorService</code> tasks.
      * <p>
-     * Default is <code>0</code>.
+     * Default is <code>16</code>.
      * <p>
      * <code>0</code> means <code>current_processors_amount * 2</code>
      *
@@ -442,14 +414,15 @@ public class Config {
         this.transportMode = transportMode;
         return this;
     }
+
     public TransportMode getTransportMode() {
         return transportMode;
     }
-    
+
     /**
      * Threads amount shared between all redis clients used by Redisson.
      * <p>
-     * Default is <code>0</code>.
+     * Default is <code>32</code>.
      * <p>
      * <code>0</code> means <code>current_processors_amount * 2</code>
      *
@@ -460,11 +433,11 @@ public class Config {
         this.nettyThreads = nettyThreads;
         return this;
     }
-    
+
     public int getNettyThreads() {
         return nettyThreads;
     }
-    
+
     /**
      * Use external ExecutorService. ExecutorService processes 
      * all listeners of <code>RTopic</code>, 
@@ -480,7 +453,7 @@ public class Config {
         this.executor = executor;
         return this;
     }
-    
+
     public ExecutorService getExecutor() {
         return executor;
     }
@@ -512,7 +485,7 @@ public class Config {
 
     /**
      * This parameter is only used if lock has been acquired without leaseTimeout parameter definition. 
-     * Lock will be expired after <code>lockWatchdogTimeout</code> if watchdog 
+     * Lock expires after <code>lockWatchdogTimeout</code> if watchdog 
      * didn't extend it to next <code>lockWatchdogTimeout</code> time interval.
      * <p>  
      * This prevents against infinity locked locks due to Redisson client crush or 
@@ -527,6 +500,7 @@ public class Config {
         this.lockWatchdogTimeout = lockWatchdogTimeout;
         return this;
     }
+
     public long getLockWatchdogTimeout() {
         return lockWatchdogTimeout;
     }
@@ -546,6 +520,7 @@ public class Config {
         this.keepPubSubOrder = keepPubSubOrder;
         return this;
     }
+
     public boolean isKeepPubSubOrder() {
         return keepPubSubOrder;
     }
@@ -561,6 +536,7 @@ public class Config {
         this.addressResolverGroupFactory = addressResolverGroupFactory;
         return this;
     }
+
     public AddressResolverGroupFactory getAddressResolverGroupFactory() {
         return addressResolverGroupFactory;
     }
@@ -682,7 +658,7 @@ public class Config {
     public static Config fromYAML(File file) throws IOException {
         return fromYAML(file, null);
     }
-    
+
     public static Config fromYAML(File file, ClassLoader classLoader) throws IOException {
         ConfigSupport support = new ConfigSupport();
         return support.fromYAML(file, Config.class, classLoader);
@@ -740,9 +716,63 @@ public class Config {
         this.useScriptCache = useScriptCache;
         return this;
     }
+
     public boolean isUseScriptCache() {
         return useScriptCache;
     }
 
+    public boolean isDecodeInExecutor() {
+        return decodeInExecutor;
+    }
+
+    /**
+     * Defines whether to decode data by <code>codec</code> in executor's threads or netty's threads. 
+     * If decoding data process takes long time and netty thread is used then `RedisTimeoutException` could arise time to time.
+     * <p>
+     * Default is <code>false</code>.
+     * 
+     * @param decodeInExecutor - <code>true</code> to use executor's threads, <code>false</code> to use netty's threads.
+     * @return config
+     */
+    public Config setDecodeInExecutor(boolean decodeInExecutor) {
+        this.decodeInExecutor = decodeInExecutor;
+        return this;
+    }
+
+    public int getMinCleanUpDelay() {
+        return minCleanUpDelay;
+    }
+    
+    /**
+     * Defines minimal delay of clean up process for expired entries.
+     * <p>
+     * Used in JCache, RSetCache, RMapCache, RListMultimapCache, RSetMultimapCache objects
+     * 
+     * @param minCleanUpDelay - delay in seconds
+     * @return config
+     */
+    public Config setMinCleanUpDelay(int minCleanUpDelay) {
+        this.minCleanUpDelay = minCleanUpDelay;
+        return this;
+    }
+
+    public int getMaxCleanUpDelay() {
+        return maxCleanUpDelay;
+    }
+    
+    /**
+     * Defines maximal delay of clean up process for expired entries.
+     * <p>
+     * Used in JCache, RSetCache, RMapCache, RListMultimapCache, RSetMultimapCache objects
+     * 
+     * @param maxCleanUpDelay - delay in seconds
+     * @return config
+     */
+    public Config setMaxCleanUpDelay(int maxCleanUpDelay) {
+        this.maxCleanUpDelay = maxCleanUpDelay;
+        return this;
+    }
+
+    
     
 }

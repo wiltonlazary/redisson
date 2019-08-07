@@ -10,25 +10,26 @@ import java.util.Map;
 import org.junit.Assert;
 import org.junit.Test;
 import org.redisson.api.MapOptions;
+import org.redisson.api.MapOptions.WriteMode;
 import org.redisson.api.RMap;
 import org.redisson.client.codec.Codec;
 
 public class RedissonMapTest extends BaseMapTest {
 
-    @Override
+        @Override
     protected <K, V> RMap<K, V> getMap(String name) {
         return redisson.getMap(name);
     }
-    
-    @Override
+
+        @Override
     protected <K, V> RMap<K, V> getMap(String name, Codec codec) {
         return redisson.getMap(name, codec);
     }
-    
-    @Override
+
+        @Override
     protected <K, V> RMap<K, V> getLoaderTestMap(String name, Map<K, V> map) {
         MapOptions<K, V> options = MapOptions.<K, V>defaults().loader(createMapLoader(map));
-        return redisson.getMap("test", options);
+        return redisson.getMap("test", options);        
     }
     
     @Override
@@ -36,7 +37,14 @@ public class RedissonMapTest extends BaseMapTest {
         MapOptions<K, V> options = MapOptions.<K, V>defaults().writer(createMapWriter(map));
         return redisson.getMap("test", options);        
     }
-            
+    
+    @Override
+    protected <K, V> RMap<K, V> getWriteBehindTestMap(String name, Map<K, V> map) {
+        MapOptions<K, V> options = MapOptions.<K, V>defaults()
+                                    .writer(createMapWriter(map))
+                                    .writeMode(WriteMode.WRITE_BEHIND);
+        return redisson.getMap("test", options);        
+    }
 
     @Test
     public void testEntrySet() {
@@ -72,7 +80,7 @@ public class RedissonMapTest extends BaseMapTest {
         String val = map.get(2);
         assertThat(val).isEqualTo("33");
     }
-    
+
     @Test
     public void testKeySet() {
         Map<SimpleKey, SimpleValue> map = redisson.getMap("simple");
@@ -104,4 +112,4 @@ public class RedissonMapTest extends BaseMapTest {
         assertThat(keys.size()).isEqualTo(0);
     }
 
-}
+            }

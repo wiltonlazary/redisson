@@ -1,5 +1,5 @@
 /**
- * Copyright 2018 Nikita Koksharov
+ * Copyright (c) 2013-2019 Nikita Koksharov
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -18,7 +18,8 @@ package org.redisson.api;
 import java.util.Collection;
 import java.util.concurrent.TimeUnit;
 
-import org.reactivestreams.Publisher;
+import reactor.core.publisher.Flux;
+import reactor.core.publisher.Mono;
 
 /**
  * Reactive interface for BlockingQueue object
@@ -38,10 +39,10 @@ public interface RBlockingQueueReactive<V> extends RQueueReactive<V> {
      *        {@code unit}
      * @param unit a {@code TimeUnit} determining how to interpret the
      *        {@code timeout} parameter
-     * @return Publisher object with the head of this queue, or {@code null} if the
+     * @return Mono object with the head of this queue, or {@code null} if the
      *         specified waiting time elapses before an element is available
      */
-    Publisher<V> pollFromAny(long timeout, TimeUnit unit, String ... queueNames);
+    Mono<V> pollFromAny(long timeout, TimeUnit unit, String... queueNames);
 
     /**
      * Removes at most the given number of available elements from
@@ -66,7 +67,7 @@ public interface RBlockingQueueReactive<V> extends RQueueReactive<V> {
      *         queue, or some property of an element of this queue prevents
      *         it from being added to the specified collection
      */
-    Publisher<Integer> drainTo(Collection<? super V> c, int maxElements);
+    Mono<Integer> drainTo(Collection<? super V> c, int maxElements);
 
     /**
      * Removes all available elements from this queue and adds them
@@ -91,12 +92,11 @@ public interface RBlockingQueueReactive<V> extends RQueueReactive<V> {
      *         queue, or some property of an element of this queue prevents
      *         it from being added to the specified collection
      */
-    Publisher<Integer> drainTo(Collection<? super V> c);
+    Mono<Integer> drainTo(Collection<? super V> c);
 
     /**
-     * Retrieves and removes last available tail element of <b>any</b> queue and adds it at the head of <code>queueName</code>,
-     * waiting up to the specified wait time if necessary for an element to become available
-     * in any of defined queues <b>including</b> queue itself.
+     * Retrieves and removes last available tail element of this queue and adds it at the head of <code>queueName</code>,
+     * waiting up to the specified wait time if necessary for an element to become available.
      *
      * @param queueName - names of destination queue
      * @param timeout how long to wait before giving up, in units of
@@ -106,7 +106,7 @@ public interface RBlockingQueueReactive<V> extends RQueueReactive<V> {
      * @return the tail of this queue, or {@code null} if the
      *         specified waiting time elapses before an element is available
      */
-    Publisher<V> pollLastAndOfferFirstTo(String queueName, long timeout, TimeUnit unit);
+    Mono<V> pollLastAndOfferFirstTo(String queueName, long timeout, TimeUnit unit);
 
     /**
      * Retrieves and removes the head of this queue in async mode, waiting up to the
@@ -119,7 +119,7 @@ public interface RBlockingQueueReactive<V> extends RQueueReactive<V> {
      * @return the head of this queue, or {@code null} if the
      *         specified waiting time elapses before an element is available
      */
-    Publisher<V> poll(long timeout, TimeUnit unit);
+    Mono<V> poll(long timeout, TimeUnit unit);
     
     /**
      * Retrieves and removes last available tail element of <b>any</b> queue and adds it at the head of <code>queueName</code>,
@@ -130,7 +130,7 @@ public interface RBlockingQueueReactive<V> extends RQueueReactive<V> {
      * @return the tail of this queue, or {@code null} if the
      *         specified waiting time elapses before an element is available
      */
-    Publisher<V> takeLastAndOfferFirstTo(String queueName);
+    Mono<V> takeLastAndOfferFirstTo(String queueName);
 
     /**
      * Retrieves and removes the head of this queue in async mode, waiting if necessary
@@ -138,7 +138,7 @@ public interface RBlockingQueueReactive<V> extends RQueueReactive<V> {
      *
      * @return the head of this queue
      */
-    Publisher<V> take();
+    Mono<V> take();
 
     /**
      * Inserts the specified element into this queue in async mode, waiting if necessary
@@ -152,6 +152,14 @@ public interface RBlockingQueueReactive<V> extends RQueueReactive<V> {
      *         element prevents it from being added to this queue
      * @return void
      */
-    Publisher<Void> put(V e);
+    Mono<Void> put(V e);
 
+    /**
+     * Retrieves and removes continues stream of elements from the head of this queue.
+     * Waits for next element become available.
+     * 
+     * @return stream of elements
+     */
+    Flux<V> takeElements();
+    
 }

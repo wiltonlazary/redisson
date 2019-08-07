@@ -1,5 +1,5 @@
 /**
- * Copyright 2018 Nikita Koksharov
+ * Copyright (c) 2013-2019 Nikita Koksharov
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -20,9 +20,11 @@ import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.TimeUnit;
 
-import org.reactivestreams.Publisher;
 import org.redisson.api.RScoredSortedSet.Aggregate;
 import org.redisson.client.protocol.ScoredEntry;
+
+import reactor.core.publisher.Flux;
+import reactor.core.publisher.Mono;
 
 /**
  * Reactive interface for SortedSet object
@@ -47,7 +49,7 @@ public interface RScoredSortedSetReactive<V> extends RExpirableReactive, RSortab
      *        {@code timeout} parameter
      * @return the tail element, or {@code null} if all sorted sets are empty 
      */
-    Publisher<V> pollLastFromAny(long timeout, TimeUnit unit, String ... queueNames);
+    Mono<V> pollLastFromAny(long timeout, TimeUnit unit, String... queueNames);
     
     /**
      * Removes and returns first available head element of <b>any</b> sorted set,
@@ -64,7 +66,7 @@ public interface RScoredSortedSetReactive<V> extends RExpirableReactive, RSortab
      * @return the head element, or {@code null} if all sorted sets are empty
      *  
      */
-    Publisher<V> pollFirstFromAny(long timeout, TimeUnit unit, String ... queueNames);
+    Mono<V> pollFirstFromAny(long timeout, TimeUnit unit, String... queueNames);
     
     /**
      * Removes and returns the head element or {@code null} if this sorted set is empty.
@@ -78,7 +80,7 @@ public interface RScoredSortedSetReactive<V> extends RExpirableReactive, RSortab
      * @return the head element, 
      *         or {@code null} if this sorted set is empty
      */
-    Publisher<V> pollFirst(long timeout, TimeUnit unit);
+    Mono<V> pollFirst(long timeout, TimeUnit unit);
 
     /**
      * Removes and returns the tail element or {@code null} if this sorted set is empty.
@@ -91,24 +93,23 @@ public interface RScoredSortedSetReactive<V> extends RExpirableReactive, RSortab
      *        {@code timeout} parameter
      * @return the tail element or {@code null} if this sorted set is empty
      */
-    Publisher<V> pollLast(long timeout, TimeUnit unit);
+    Mono<V> pollLast(long timeout, TimeUnit unit);
     
     /**
      * Removes and returns the head elements or {@code null} if this sorted set is empty.
      *
      * @param count - elements amount
-     * @return the head element, 
-     *         or {@code null} if this sorted set is empty
+     * @return the head elements
      */
-    Publisher<Collection<V>> pollFirst(int count);
+    Mono<Collection<V>> pollFirst(int count);
 
     /**
      * Removes and returns the tail elements or {@code null} if this sorted set is empty.
      *
      * @param count - elements amount
-     * @return the tail element or {@code null} if this sorted set is empty
+     * @return the tail elements
      */
-    Publisher<Collection<V>> pollLast(int count);
+    Mono<Collection<V>> pollLast(int count);
 
     /**
      * Removes and returns the head element or {@code null} if this sorted set is empty.
@@ -116,42 +117,42 @@ public interface RScoredSortedSetReactive<V> extends RExpirableReactive, RSortab
      * @return the head element, 
      *         or {@code null} if this sorted set is empty
      */
-    Publisher<V> pollFirst();
+    Mono<V> pollFirst();
 
     /**
      * Removes and returns the tail element or {@code null} if this sorted set is empty.
      *
      * @return the tail element or {@code null} if this sorted set is empty
      */
-    Publisher<V> pollLast();
+    Mono<V> pollLast();
 
     /**
      * Returns the head element or {@code null} if this sorted set is empty.
      *
      * @return the head element or {@code null} if this sorted set is empty
      */
-    Publisher<V> first();
+    Mono<V> first();
 
     /**
      * Returns the tail element or {@code null} if this sorted set is empty.
      *
      * @return the tail element or {@code null} if this sorted set is empty
      */
-    Publisher<V> last();
+    Mono<V> last();
 
     /**
      * Returns score of the head element or returns {@code null} if this sorted set is empty.
      *
      * @return the tail element or {@code null} if this sorted set is empty
      */
-    Publisher<Double> firstScore();
+    Mono<Double> firstScore();
 
     /**
      * Returns score of the tail element or returns {@code null} if this sorted set is empty.
      *
      * @return the tail element or {@code null} if this sorted set is empty
      */
-    Publisher<Double> lastScore();
+    Mono<Double> lastScore();
     
     /**
      * Returns an iterator over elements in this set.
@@ -160,7 +161,7 @@ public interface RScoredSortedSetReactive<V> extends RExpirableReactive, RSortab
      * @param pattern - search pattern
      * @return iterator
      */
-    Publisher<V> iterator(String pattern);
+    Flux<V> iterator(String pattern);
     
     /**
      * Returns an iterator over elements in this set.
@@ -169,7 +170,7 @@ public interface RScoredSortedSetReactive<V> extends RExpirableReactive, RSortab
      * @param count - size of elements batch
      * @return iterator
      */
-    Publisher<V> iterator(int count);
+    Flux<V> iterator(int count);
     
     /**
      * Returns an iterator over elements in this set.
@@ -180,13 +181,35 @@ public interface RScoredSortedSetReactive<V> extends RExpirableReactive, RSortab
      * @param count - size of elements batch
      * @return iterator
      */
-    Publisher<V> iterator(String pattern, int count);
+    Flux<V> iterator(String pattern, int count);
     
-    Publisher<V> iterator();
+    Flux<V> iterator();
 
-    Publisher<Integer> removeRangeByScore(double startScore, boolean startScoreInclusive, double endScore, boolean endScoreInclusive);
+    /**
+     * Removes values by score range.
+     * 
+     * @param startScore - start score. 
+     *                     Use <code>Double.POSITIVE_INFINITY</code> or <code>Double.NEGATIVE_INFINITY</code> 
+     *                     to define infinity numbers
+     * @param startScoreInclusive - start score inclusive
+     * @param endScore - end score
+     *                     Use <code>Double.POSITIVE_INFINITY</code> or <code>Double.NEGATIVE_INFINITY</code> 
+     *                     to define infinity numbers
+     * 
+     * @param endScoreInclusive - end score inclusive
+     * @return number of elements removed
+     */
+    Mono<Integer> removeRangeByScore(double startScore, boolean startScoreInclusive, double endScore, boolean endScoreInclusive);
 
-    Publisher<Integer> removeRangeByRank(int startIndex, int endIndex);
+    /**
+     * Removes values by rank range. Indexes are zero based. 
+     * <code>-1</code> means the highest score, <code>-2</code> means the second highest score.
+     * 
+     * @param startIndex - start index 
+     * @param endIndex - end index
+     * @return number of elements removed
+     */
+    Mono<Integer> removeRangeByRank(int startIndex, int endIndex);
 
     /**
      * Returns rank of value, with the scores ordered from low to high.
@@ -194,7 +217,7 @@ public interface RScoredSortedSetReactive<V> extends RExpirableReactive, RSortab
      * @param o - object
      * @return rank or <code>null</code> if value does not exist
      */
-    Publisher<Integer> rank(V o);
+    Mono<Integer> rank(V o);
     
     /**
      * Returns rank of value, with the scores ordered from high to low.
@@ -202,9 +225,15 @@ public interface RScoredSortedSetReactive<V> extends RExpirableReactive, RSortab
      * @param o - object
      * @return rank or <code>null</code> if value does not exist
      */
-    Publisher<Integer> revRank(V o);
+    Mono<Integer> revRank(V o);
 
-    Publisher<Double> getScore(V o);
+    /**
+     * Returns score of element or <code>null</code> if it doesn't exist.
+     * 
+     * @param o - element
+     * @return score
+     */
+    Mono<Double> getScore(V o);
 
     /**
      * Adds element to this set, overrides previous score if it has been already added.
@@ -213,9 +242,16 @@ public interface RScoredSortedSetReactive<V> extends RExpirableReactive, RSortab
      * @param object - object itself
      * @return <code>true</code> if element has added and <code>false</code> if not.
      */
-    Publisher<Boolean> add(double score, V object);
+    Mono<Boolean> add(double score, V object);
 
-    Publisher<Long> addAll(Map<V, Double> objects);
+    /**
+     * Adds all elements contained in the specified map to this sorted set.
+     * Map contains of score mapped by object. 
+     * 
+     * @param objects - map of elements to add
+     * @return amount of added elements, not including already existing in this sorted set
+     */
+    Mono<Long> addAll(Map<V, Double> objects);
     
     /**
      * Adds element to this set, overrides previous score if it has been already added.
@@ -225,7 +261,7 @@ public interface RScoredSortedSetReactive<V> extends RExpirableReactive, RSortab
      * @param object - object itself
      * @return rank
      */
-    Publisher<Integer> addAndGetRank(double score, V object);
+    Mono<Integer> addAndGetRank(double score, V object);
 
     /**
      * Adds element to this set, overrides previous score if it has been already added.
@@ -235,7 +271,7 @@ public interface RScoredSortedSetReactive<V> extends RExpirableReactive, RSortab
      * @param object - object itself
      * @return reverse rank
      */
-    Publisher<Integer> addAndGetRevRank(double score, V object);
+    Mono<Integer> addAndGetRevRank(double score, V object);
     
     /**
      * Adds element to this set only if has not been added before.
@@ -246,21 +282,70 @@ public interface RScoredSortedSetReactive<V> extends RExpirableReactive, RSortab
      * @param object - object itself
      * @return <code>true</code> if element has added and <code>false</code> if not.
      */
-    Publisher<Boolean> tryAdd(double score, V object);
+    Mono<Boolean> tryAdd(double score, V object);
     
-    Publisher<Boolean> remove(V object);
+    /**
+     * Removes a single instance of the specified element from this
+     * sorted set, if it is present.
+     *
+     * @param object element to be removed from this sorted set, if present
+     * @return <code>true</code> if an element was removed as a result of this call
+     */
+    Mono<Boolean> remove(V object);
 
-    Publisher<Integer> size();
+    /**
+     * Returns size of this set.
+     * 
+     * @return size
+     */
+    Mono<Integer> size();
 
-    Publisher<Boolean> contains(V o);
+    /**
+     * Returns <code>true</code> if this sorted set contains encoded state of the specified element.
+     *
+     * @param o element whose presence in this collection is to be tested
+     * @return <code>true</code> if this sorted set contains the specified
+     *         element and <code>false</code> otherwise
+     */
+    Mono<Boolean> contains(V o);
 
-    Publisher<Boolean> containsAll(Collection<?> c);
+    /**
+     * Returns <code>true</code> if this sorted set contains all of the elements
+     * in encoded state in the specified collection.
+     *
+     * @param  c collection to be checked for containment in this sorted set
+     * @return <code>true</code> if this sorted set contains all of the elements
+     *         in the specified collection
+     */
+    Mono<Boolean> containsAll(Collection<?> c);
 
-    Publisher<Boolean> removeAll(Collection<?> c);
+    /**
+     * Removes all of this sorted set's elements that are also contained in the
+     * specified collection.
+     *
+     * @param c sorted set containing elements to be removed from this collection
+     * @return <code>true</code> if this sorted set changed as a result of the
+     *         call
+     */
+    Mono<Boolean> removeAll(Collection<?> c);
 
-    Publisher<Boolean> retainAll(Collection<?> c);
+    /**
+     * Retains only the elements in this sorted set that are contained in the
+     * specified collection.
+     *
+     * @param c collection containing elements to be retained in this collection
+     * @return <code>true</code> if this sorted set changed as a result of the call
+     */
+    Mono<Boolean> retainAll(Collection<?> c);
 
-    Publisher<Double> addScore(V object, Number value);
+    /**
+     * Increases score of specified element by value.
+     * 
+     * @param element - element whose score needs to be increased
+     * @param value - value
+     * @return updated score of element
+     */
+    Mono<Double> addScore(V element, Number value);
 
     /**
      * Adds score to element and returns its reverse rank
@@ -269,7 +354,7 @@ public interface RScoredSortedSetReactive<V> extends RExpirableReactive, RSortab
      * @param value - object score
      * @return reverse rank
      */
-    Publisher<Integer> addScoreAndGetRevRank(V object, Number value);
+    Mono<Integer> addScoreAndGetRevRank(V object, Number value);
     
     /**
      * Adds score to element and returns its rank
@@ -278,21 +363,105 @@ public interface RScoredSortedSetReactive<V> extends RExpirableReactive, RSortab
      * @param value - object score
      * @return rank
      */
-    Publisher<Integer> addScoreAndGetRank(V object, Number value);
+    Mono<Integer> addScoreAndGetRank(V object, Number value);
     
-    Publisher<Collection<V>> valueRange(int startIndex, int endIndex);
+    /**
+     * Returns values by rank range. Indexes are zero based. 
+     * <code>-1</code> means the highest score, <code>-2</code> means the second highest score.
+     * 
+     * @param startIndex - start index 
+     * @param endIndex - end index
+     * @return elements
+     */
+    Mono<Collection<V>> valueRange(int startIndex, int endIndex);
 
-    Publisher<Collection<ScoredEntry<V>>> entryRange(int startIndex, int endIndex);
+    /**
+     * Returns entries (value and its score) by rank range. Indexes are zero based. 
+     * <code>-1</code> means the highest score, <code>-2</code> means the second highest score.
+     * 
+     * @param startIndex - start index 
+     * @param endIndex - end index
+     * @return entries
+     */
+    Mono<Collection<ScoredEntry<V>>> entryRange(int startIndex, int endIndex);
 
-    Publisher<Collection<V>> valueRange(double startScore, boolean startScoreInclusive, double endScore, boolean endScoreInclusive);
+    /**
+     * Returns all values between <code>startScore</code> and <code>endScore</code>.
+     * 
+     * @param startScore - start score. 
+     *                     Use <code>Double.POSITIVE_INFINITY</code> or <code>Double.NEGATIVE_INFINITY</code> 
+     *                     to define infinity numbers
+     * @param startScoreInclusive - start score inclusive
+     * @param endScore - end score
+     *                     Use <code>Double.POSITIVE_INFINITY</code> or <code>Double.NEGATIVE_INFINITY</code> 
+     *                     to define infinity numbers
+     * 
+     * @param endScoreInclusive - end score inclusive
+     * @return values
+     */
+    Mono<Collection<V>> valueRange(double startScore, boolean startScoreInclusive, double endScore, boolean endScoreInclusive);
 
-    Publisher<Collection<ScoredEntry<V>>> entryRange(double startScore, boolean startScoreInclusive, double endScore, boolean endScoreInclusive);
+    /**
+     * Returns all entries (value and its score) between <code>startScore</code> and <code>endScore</code>.
+     * 
+     * @param startScore - start score. 
+     *                     Use <code>Double.POSITIVE_INFINITY</code> or <code>Double.NEGATIVE_INFINITY</code> 
+     *                     to define infinity numbers
+     * @param startScoreInclusive - start score inclusive
+     * @param endScore - end score
+     *                     Use <code>Double.POSITIVE_INFINITY</code> or <code>Double.NEGATIVE_INFINITY</code> 
+     *                     to define infinity numbers
+     * 
+     * @param endScoreInclusive - end score inclusive
+     * @return entries
+     */
+    Mono<Collection<ScoredEntry<V>>> entryRange(double startScore, boolean startScoreInclusive, double endScore, boolean endScoreInclusive);
 
-    Publisher<Collection<V>> valueRange(double startScore, boolean startScoreInclusive, double endScore, boolean endScoreInclusive, int offset, int count);
+    /**
+     * Returns all values between <code>startScore</code> and <code>endScore</code>.
+     * 
+     * @param startScore - start score. 
+     *                     Use <code>Double.POSITIVE_INFINITY</code> or <code>Double.NEGATIVE_INFINITY</code> 
+     *                     to define infinity numbers
+     * @param startScoreInclusive - start score inclusive
+     * @param endScore - end score
+     *                     Use <code>Double.POSITIVE_INFINITY</code> or <code>Double.NEGATIVE_INFINITY</code> 
+     *                     to define infinity numbers
+     * 
+     * @param endScoreInclusive - end score inclusive
+     * @param offset - offset of sorted data
+     * @param count - amount of sorted data
+     * @return values
+     */
+    Mono<Collection<V>> valueRange(double startScore, boolean startScoreInclusive, double endScore, boolean endScoreInclusive, int offset, int count);
 
-    Publisher<Collection<ScoredEntry<V>>> entryRange(double startScore, boolean startScoreInclusive, double endScore, boolean endScoreInclusive, int offset, int count);
+    /**
+     * Returns all entries (value and its score) between <code>startScore</code> and <code>endScore</code>.
+     * 
+     * @param startScore - start score. 
+     *                     Use <code>Double.POSITIVE_INFINITY</code> or <code>Double.NEGATIVE_INFINITY</code> 
+     *                     to define infinity numbers
+     * @param startScoreInclusive - start score inclusive
+     * @param endScore - end score
+     *                     Use <code>Double.POSITIVE_INFINITY</code> or <code>Double.NEGATIVE_INFINITY</code> 
+     *                     to define infinity numbers
+     * 
+     * @param endScoreInclusive - end score inclusive
+     * @param offset - offset of sorted data
+     * @param count - amount of sorted data
+     * @return entries
+     */
+    Mono<Collection<ScoredEntry<V>>> entryRange(double startScore, boolean startScoreInclusive, double endScore, boolean endScoreInclusive, int offset, int count);
 
-    Publisher<Collection<V>> valueRangeReversed(int startIndex, int endIndex);
+    /**
+     * Returns values by rank range in reverse order. Indexes are zero based. 
+     * <code>-1</code> means the highest score, <code>-2</code> means the second highest score.
+     * 
+     * @param startIndex - start index 
+     * @param endIndex - end index
+     * @return elements
+     */
+    Mono<Collection<V>> valueRangeReversed(int startIndex, int endIndex);
     
     /**
      * Returns all values between <code>startScore</code> and <code>endScore</code> in reversed order.
@@ -308,16 +477,69 @@ public interface RScoredSortedSetReactive<V> extends RExpirableReactive, RSortab
      * @param endScoreInclusive - end score inclusive
      * @return values
      */
-    Publisher<Collection<V>> valueRangeReversed(double startScore, boolean startScoreInclusive, double endScore, boolean endScoreInclusive);
+    Mono<Collection<V>> valueRangeReversed(double startScore, boolean startScoreInclusive, double endScore, boolean endScoreInclusive);
 
-    Publisher<Collection<V>> valueRangeReversed(double startScore, boolean startScoreInclusive, double endScore, boolean endScoreInclusive, int offset, int count);
+    /**
+     * Returns all values between <code>startScore</code> and <code>endScore</code> in reversed order.
+     * 
+     * @param startScore - start score. 
+     *                     Use <code>Double.POSITIVE_INFINITY</code> or <code>Double.NEGATIVE_INFINITY</code> 
+     *                     to define infinity numbers
+     * @param startScoreInclusive - start score inclusive
+     * @param endScore - end score
+     *                     Use <code>Double.POSITIVE_INFINITY</code> or <code>Double.NEGATIVE_INFINITY</code> 
+     *                     to define infinity numbers
+     * 
+     * @param endScoreInclusive - end score inclusive
+     * @param offset - offset of sorted data
+     * @param count - amount of sorted data
+     * @return values
+     */
+    Mono<Collection<V>> valueRangeReversed(double startScore, boolean startScoreInclusive, double endScore, boolean endScoreInclusive, int offset, int count);
     
-    Publisher<Collection<ScoredEntry<V>>> entryRangeReversed(int startIndex, int endIndex);
+    /**
+     * Returns entries (value and its score) by rank range in reverse order. Indexes are zero based. 
+     * <code>-1</code> means the highest score, <code>-2</code> means the second highest score.
+     * 
+     * @param startIndex - start index 
+     * @param endIndex - end index
+     * @return entries
+     */
+    Mono<Collection<ScoredEntry<V>>> entryRangeReversed(int startIndex, int endIndex);
+
+    /**
+     * Returns all entries (value and its score) between <code>startScore</code> and <code>endScore</code> in reversed order.
+     * 
+     * @param startScore - start score. 
+     *                     Use <code>Double.POSITIVE_INFINITY</code> or <code>Double.NEGATIVE_INFINITY</code> 
+     *                     to define infinity numbers
+     * @param startScoreInclusive - start score inclusive
+     * @param endScore - end score
+     *                     Use <code>Double.POSITIVE_INFINITY</code> or <code>Double.NEGATIVE_INFINITY</code> 
+     *                     to define infinity numbers
+     * 
+     * @param endScoreInclusive - end score inclusive
+     * @return entries
+     */
+    Mono<Collection<ScoredEntry<V>>> entryRangeReversed(double startScore, boolean startScoreInclusive, double endScore, boolean endScoreInclusive);
     
-    Publisher<Collection<ScoredEntry<V>>> entryRangeReversed(double startScore, boolean startScoreInclusive, double endScore, boolean endScoreInclusive);
-    
-    Publisher<Collection<ScoredEntry<V>>> entryRangeReversed(double startScore, boolean startScoreInclusive, double endScore, boolean endScoreInclusive, int offset, int count);
-    
+    /**
+     * Returns all entries (value and its score) between <code>startScore</code> and <code>endScore</code> in reversed order.
+     * 
+     * @param startScore - start score. 
+     *                     Use <code>Double.POSITIVE_INFINITY</code> or <code>Double.NEGATIVE_INFINITY</code> 
+     *                     to define infinity numbers
+     * @param startScoreInclusive - start score inclusive
+     * @param endScore - end score
+     *                     Use <code>Double.POSITIVE_INFINITY</code> or <code>Double.NEGATIVE_INFINITY</code> 
+     *                     to define infinity numbers
+     * 
+     * @param endScoreInclusive - end score inclusive
+     * @param offset - offset of sorted data
+     * @param count - amount of sorted data
+     * @return entries
+     */
+    Mono<Collection<ScoredEntry<V>>> entryRangeReversed(double startScore, boolean startScoreInclusive, double endScore, boolean endScoreInclusive, int offset, int count);
     
     /**
      * Returns the number of elements with a score between <code>startScore</code> and <code>endScore</code>.
@@ -328,14 +550,14 @@ public interface RScoredSortedSetReactive<V> extends RExpirableReactive, RSortab
      * @param endScoreInclusive - end score inclusive
      * @return count
      */
-    Publisher<Long> count(double startScore, boolean startScoreInclusive, double endScore, boolean endScoreInclusive);
+    Mono<Long> count(double startScore, boolean startScoreInclusive, double endScore, boolean endScoreInclusive);
     
     /**
      * Read all values at once.
      * 
      * @return values
      */
-    Publisher<Collection<V>> readAll();
+    Mono<Collection<V>> readAll();
 
     /**
      * Intersect provided ScoredSortedSets 
@@ -344,7 +566,7 @@ public interface RScoredSortedSetReactive<V> extends RExpirableReactive, RSortab
      * @param names - names of ScoredSortedSet
      * @return length of intersection
      */
-    Publisher<Integer> intersection(String... names);
+    Mono<Integer> intersection(String... names);
 
     /**
      * Intersect provided ScoredSortedSets with defined aggregation method 
@@ -354,7 +576,7 @@ public interface RScoredSortedSetReactive<V> extends RExpirableReactive, RSortab
      * @param names - names of ScoredSortedSet
      * @return length of intersection
      */
-    Publisher<Integer> intersection(Aggregate aggregate, String... names);
+    Mono<Integer> intersection(Aggregate aggregate, String... names);
 
     /**
      * Intersect provided ScoredSortedSets mapped to weight multiplier 
@@ -363,7 +585,7 @@ public interface RScoredSortedSetReactive<V> extends RExpirableReactive, RSortab
      * @param nameWithWeight - name of ScoredSortedSet mapped to weight multiplier
      * @return length of intersection
      */
-    Publisher<Integer> intersection(Map<String, Double> nameWithWeight);
+    Mono<Integer> intersection(Map<String, Double> nameWithWeight);
 
     /**
      * Intersect provided ScoredSortedSets mapped to weight multiplier 
@@ -374,7 +596,7 @@ public interface RScoredSortedSetReactive<V> extends RExpirableReactive, RSortab
      * @param nameWithWeight - name of ScoredSortedSet mapped to weight multiplier
      * @return length of intersection
      */
-    Publisher<Integer> intersection(Aggregate aggregate, Map<String, Double> nameWithWeight);
+    Mono<Integer> intersection(Aggregate aggregate, Map<String, Double> nameWithWeight);
 
     /**
      * Union provided ScoredSortedSets 
@@ -383,7 +605,7 @@ public interface RScoredSortedSetReactive<V> extends RExpirableReactive, RSortab
      * @param names - names of ScoredSortedSet
      * @return length of union
      */
-    Publisher<Integer> union(String... names);
+    Mono<Integer> union(String... names);
 
     /**
      * Union provided ScoredSortedSets with defined aggregation method 
@@ -393,7 +615,7 @@ public interface RScoredSortedSetReactive<V> extends RExpirableReactive, RSortab
      * @param names - names of ScoredSortedSet
      * @return length of union
      */
-    Publisher<Integer> union(Aggregate aggregate, String... names);
+    Mono<Integer> union(Aggregate aggregate, String... names);
 
     /**
      * Union provided ScoredSortedSets mapped to weight multiplier 
@@ -402,7 +624,7 @@ public interface RScoredSortedSetReactive<V> extends RExpirableReactive, RSortab
      * @param nameWithWeight - name of ScoredSortedSet mapped to weight multiplier
      * @return length of union
      */
-    Publisher<Integer> union(Map<String, Double> nameWithWeight);
+    Mono<Integer> union(Map<String, Double> nameWithWeight);
 
     /**
      * Union provided ScoredSortedSets mapped to weight multiplier 
@@ -413,20 +635,36 @@ public interface RScoredSortedSetReactive<V> extends RExpirableReactive, RSortab
      * @param nameWithWeight - name of ScoredSortedSet mapped to weight multiplier
      * @return length of union
      */
-    Publisher<Integer> union(Aggregate aggregate, Map<String, Double> nameWithWeight);
+    Mono<Integer> union(Aggregate aggregate, Map<String, Double> nameWithWeight);
 
     /**
      * Removes and returns the head element waiting if necessary for an element to become available.
      *
      * @return the head element
      */
-    Publisher<V> takeFirst();
+    Mono<V> takeFirst();
 
     /**
      * Removes and returns the tail element waiting if necessary for an element to become available.
      *
      * @return the tail element
      */
-    Publisher<V> takeLast();
+    Mono<V> takeLast();
+
+    /**
+     * Retrieves and removes continues stream of elements from the head of this queue. 
+     * Waits for next element become available.
+     * 
+     * @return stream of head elements
+     */
+    Flux<V> takeFirstElements();
     
+    /**
+     * Retrieves and removes continues stream of elements from the tail of this queue. 
+     * Waits for next element become available.
+     * 
+     * @return stream of tail elements
+     */
+    Flux<V> takeLastElements();
+
 }

@@ -1,5 +1,5 @@
 /**
- * Copyright 2018 Nikita Koksharov
+ * Copyright (c) 2013-2019 Nikita Koksharov
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -15,12 +15,8 @@
  */
 package org.redisson.rx;
 
-import java.util.Queue;
 import java.util.concurrent.Callable;
-import java.util.concurrent.ConcurrentLinkedQueue;
 
-import org.reactivestreams.Publisher;
-import org.reactivestreams.Subscription;
 import org.redisson.api.BatchOptions;
 import org.redisson.api.BatchResult;
 import org.redisson.api.RFuture;
@@ -34,7 +30,6 @@ import org.redisson.connection.NodeSource;
 import org.redisson.misc.RPromise;
 
 import io.reactivex.Flowable;
-import reactor.rx.action.support.DefaultSubscriber;
 
 /**
  * 
@@ -44,22 +39,35 @@ import reactor.rx.action.support.DefaultSubscriber;
 public class CommandRxBatchService extends CommandRxService {
 
     private final CommandBatchService batchService;
-    private final Queue<Publisher<?>> publishers = new ConcurrentLinkedQueue<Publisher<?>>();
 
-    public CommandRxBatchService(ConnectionManager connectionManager) {
+    public CommandRxBatchService(ConnectionManager connectionManager, BatchOptions options) {
         super(connectionManager);
-        batchService = new CommandBatchService(connectionManager);
+        batchService = new CommandBatchService(connectionManager, options);
     }
-
+    
     @Override
     public <R> Flowable<R> flowable(Callable<RFuture<R>> supplier) {
-        Flowable<R> flowable = super.flowable(supplier);
-        publishers.add(flowable);
+        Flowable<R> flowable = super.flowable(new Callable<RFuture<R>>() {
+            volatile RFuture<R> future;
+            @Override
+            public  RFuture<R> call() throws Exception {
+                if (future == null) {
+                    synchronized (this) {
+                        if (future == null) {
+                            future = supplier.call();
+                        }
+                    }
+                }
+                return future;
+            }
+        });
+        flowable.subscribe();
         return flowable;
     }
     
-    public <R> Flowable<R> superReactive(Callable<RFuture<R>> supplier) {
-        return super.flowable(supplier);
+    @Override
+    protected <R> RPromise<R> createPromise() {
+        return batchService.createPromise();
     }
     
     @Override
@@ -69,15 +77,6 @@ public class CommandRxBatchService extends CommandRxService {
     }
 
     public RFuture<BatchResult<?>> executeAsync(BatchOptions options) {
-        for (Publisher<?> publisher : publishers) {
-            publisher.subscribe(new DefaultSubscriber<Object>() {
-                @Override
-                public void onSubscribe(Subscription s) {
-                    s.request(1);
-                }
-            });
-        }
-
         return batchService.executeAsync(options);
     }
 

@@ -1,5 +1,5 @@
 /**
- * Copyright 2018 Nikita Koksharov
+ * Copyright (c) 2013-2019 Nikita Koksharov
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -15,9 +15,7 @@
  */
 package org.redisson.reactive;
 
-import org.reactivestreams.Publisher;
 import org.redisson.api.RBucketReactive;
-import org.redisson.api.RFuture;
 import org.redisson.api.RMap;
 import org.redisson.api.RMapCache;
 import org.redisson.api.RMapCacheReactive;
@@ -32,7 +30,7 @@ import org.redisson.api.TransactionOptions;
 import org.redisson.client.codec.Codec;
 import org.redisson.transaction.RedissonTransaction;
 
-import reactor.fn.Supplier;
+import reactor.core.publisher.Mono;
 
 /**
  * 
@@ -116,23 +114,13 @@ public class RedissonTransactionReactive implements RTransactionReactive {
     }
 
     @Override
-    public Publisher<Void> commit() {
-        return executorService.reactive(new Supplier<RFuture<Void>>() {
-            @Override
-            public RFuture<Void> get() {
-                return transaction.commitAsync();
-            }
-        });
+    public Mono<Void> commit() {
+        return executorService.reactive(() -> transaction.commitAsync());
     }
 
     @Override
-    public Publisher<Void> rollback() {
-        return executorService.reactive(new Supplier<RFuture<Void>>() {
-            @Override
-            public RFuture<Void> get() {
-                return transaction.rollbackAsync();
-            }
-        });
+    public Mono<Void> rollback() {
+        return executorService.reactive(() -> transaction.rollbackAsync());
     }
     
 }

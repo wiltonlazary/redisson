@@ -1,5 +1,5 @@
 /**
- * Copyright 2018 Nikita Koksharov
+ * Copyright (c) 2013-2019 Nikita Koksharov
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -15,13 +15,14 @@
  */
 package org.redisson.codec;
 
-import io.netty.util.internal.PlatformDependent;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentMap;
-import org.redisson.client.codec.Codec;
-import org.redisson.config.Config;
+
 import org.redisson.api.RObject;
 import org.redisson.api.annotation.REntity;
 import org.redisson.api.annotation.RObjectField;
+import org.redisson.client.codec.Codec;
+import org.redisson.config.Config;
 import org.redisson.liveobject.misc.ClassUtils;
 
 /**
@@ -30,7 +31,7 @@ import org.redisson.liveobject.misc.ClassUtils;
  */
 public class DefaultReferenceCodecProvider implements ReferenceCodecProvider {
 
-    public transient final ConcurrentMap<Class<? extends Codec>, Codec> codecCache = PlatformDependent.newConcurrentHashMap();
+    private final ConcurrentMap<Class<? extends Codec>, Codec> codecCache = new ConcurrentHashMap<>();
 
     @Override
     public <T extends Codec> T getCodec(Class<T> codecClass) {

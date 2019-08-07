@@ -1,5 +1,5 @@
 /**
- * Copyright 2018 Nikita Koksharov
+ * Copyright (c) 2013-2019 Nikita Koksharov
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -17,18 +17,16 @@ package org.redisson.reactive;
 
 import java.util.AbstractMap;
 import java.util.Map.Entry;
+import java.util.concurrent.atomic.AtomicLong;
+import java.util.function.Consumer;
+import java.util.function.LongConsumer;
 
-import org.reactivestreams.Publisher;
-import org.reactivestreams.Subscriber;
 import org.redisson.RedissonMap;
 import org.redisson.api.RFuture;
 import org.redisson.client.RedisClient;
 import org.redisson.client.protocol.decoder.MapScanResult;
 
-import io.netty.util.concurrent.Future;
-import io.netty.util.concurrent.FutureListener;
-import reactor.rx.Stream;
-import reactor.rx.subscription.ReactiveSubscription;
+import reactor.core.publisher.FluxSink;
 
 /**
  * 
@@ -38,7 +36,7 @@ import reactor.rx.subscription.ReactiveSubscription;
  * @param <V> value type
  * @param <M> entry type
  */
-public class MapReactiveIterator<K, V, M> {
+public class MapReactiveIterator<K, V, M> implements Consumer<FluxSink<M>> {
 
     private final RedissonMap<K, V> map;
     private final String pattern;
@@ -49,78 +47,76 @@ public class MapReactiveIterator<K, V, M> {
         this.pattern = pattern;
         this.count = count;
     }
+    
+    @Override
+    public void accept(FluxSink<M> emitter) {
+        emitter.onRequest(new LongConsumer() {
 
-    public Publisher<M> stream() {
-        return new Stream<M>() {
-
+            private long nextIterPos;
+            private RedisClient client;
+            private AtomicLong elementsRead = new AtomicLong();
+            
+            private boolean finished;
+            private volatile boolean completed;
+            private AtomicLong readAmount = new AtomicLong();
+            
             @Override
-            public void subscribe(final Subscriber<? super M> t) {
-                t.onSubscribe(new ReactiveSubscription<M>(this, t) {
+            public void accept(long value) {
+                readAmount.addAndGet(value);
+                if (completed || elementsRead.get() == 0) {
+                    nextValues(emitter);
+                    completed = false;
+                }
+            };
+            
+            protected void nextValues(FluxSink<M> emitter) {
+                        scanIterator(client, nextIterPos).onComplete((res, e) -> {
+                            if (e != null) {
+                                emitter.error(e);
+                                return;
+                            }
 
-                    private long nextIterPos = 0;
-                    private RedisClient client;
+                            if (finished) {
+                                client = null;
+                                nextIterPos = 0;
+                                return;
+                            }
 
-                    private long currentIndex;
-
-                    @Override
-                    protected void onRequest(final long n) {
-                        currentIndex = n;
-                        nextValues();
-                    }
-
-                    protected void nextValues() {
-                        final ReactiveSubscription<M> m = this;
-                        scanIterator(client, nextIterPos).addListener(new FutureListener<MapScanResult<Object, Object>>() {
-
-                            @Override
-                            public void operationComplete(Future<MapScanResult<Object, Object>> future)
-                                    throws Exception {
-                                    if (!future.isSuccess()) {
-                                        m.onError(future.cause());
-                                        return;
-                                    }
-    
-                                    if (currentIndex == 0) {
-                                        client = null;
-                                        nextIterPos = 0;
-                                        return;
-                                    }
-    
-                                    MapScanResult<Object, Object> res = future.get();
-                                    client = res.getRedisClient();
-                                    nextIterPos = res.getPos();
-    
-                                    for (Entry<Object, Object> entry : res.getMap().entrySet()) {
-                                        M val = getValue(entry);
-                                        m.onNext(val);
-                                        currentIndex--;
-                                        if (currentIndex == 0) {
-                                            m.onComplete();
-                                            return;
-                                        }
-                                    }
-                                    
-                                    if (res.getPos() == 0) {
-                                        currentIndex = 0;
-                                        m.onComplete();
-                                    }
-    
-                                    if (currentIndex == 0) {
-                                        return;
-                                    }
-                                    nextValues();
-                                }
+                            client = res.getRedisClient();
+                            nextIterPos = res.getPos();
+                            
+                            for (Entry<Object, Object> entry : res.getMap().entrySet()) {
+                                M val = getValue(entry);
+                                emitter.next(val);
+                                elementsRead.incrementAndGet();
+                            }
+                            
+                            if (elementsRead.get() >= readAmount.get()) {
+                                emitter.complete();
+                                elementsRead.set(0);
+                                completed = true;
+                                return;
+                            }
+                            if (res.getPos() == 0 && !tryAgain()) {
+                                finished = true;
+                                emitter.complete();
+                            }
+                            
+                            if (finished || completed) {
+                                return;
+                            }
+                            nextValues(emitter);
                         });
                     }
-                });
-            };
-
-        };
+        });
     }
 
+    protected boolean tryAgain() {
+        return false;
+    }
 
-    M getValue(final Entry<Object, Object> entry) {
-        return (M)new AbstractMap.SimpleEntry<K, V>((K)entry.getKey(), (V)entry.getValue()) {
+    M getValue(Entry<Object, Object> entry) {
+        return (M) new AbstractMap.SimpleEntry<K, V>((K) entry.getKey(), (V) entry.getValue()) {
 
             @Override
             public V setValue(V value) {

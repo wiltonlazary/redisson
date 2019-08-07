@@ -1,5 +1,5 @@
 /**
- * Copyright 2018 Nikita Koksharov
+ * Copyright (c) 2013-2019 Nikita Koksharov
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -15,16 +15,17 @@
  */
 package org.redisson.reactive;
 
+import java.util.function.Consumer;
+import java.util.function.LongConsumer;
+
 import org.reactivestreams.Publisher;
-import org.reactivestreams.Subscriber;
 import org.redisson.RedissonList;
 import org.redisson.api.RFuture;
+import org.redisson.api.RListAsync;
 import org.redisson.client.codec.Codec;
 
-import io.netty.util.concurrent.Future;
-import io.netty.util.concurrent.FutureListener;
-import reactor.rx.Stream;
-import reactor.rx.subscription.ReactiveSubscription;
+import reactor.core.publisher.Flux;
+import reactor.core.publisher.FluxSink;
 
 /**
  * Distributed and concurrent implementation of {@link java.util.List}
@@ -35,7 +36,11 @@ import reactor.rx.subscription.ReactiveSubscription;
  */
 public class RedissonListReactive<V> {
 
-    private final RedissonList<V> instance;
+    private final RListAsync<V> instance;
+    
+    public RedissonListReactive(RListAsync<V> instance) {
+        this.instance = instance;
+    }
 
     public RedissonListReactive(CommandReactiveExecutor commandExecutor, String name) {
         this.instance = new RedissonList<V>(commandExecutor, name, null);
@@ -61,51 +66,51 @@ public class RedissonListReactive<V> {
         return iterator(startIndex, true);
     }
 
-    private Publisher<V> iterator(final int startIndex, final boolean forward) {
-        return new Stream<V>() {
+    private Publisher<V> iterator(int startIndex, boolean forward) {
+        return Flux.create(new Consumer<FluxSink<V>>() {
 
             @Override
-            public void subscribe(final Subscriber<? super V> t) {
-                t.onSubscribe(new ReactiveSubscription<V>(this, t) {
-
-                    private int currentIndex = startIndex;
-
+            public void accept(FluxSink<V> emitter) {
+                emitter.onRequest(new LongConsumer() {
+                    
+                    int currentIndex = startIndex;
+                    
                     @Override
-                    protected void onRequest(final long n) {
-                        final ReactiveSubscription<V> m = this;
-                        instance.getAsync(currentIndex).addListener(new FutureListener<V>() {
-                            @Override
-                            public void operationComplete(Future<V> future) throws Exception {
-                                if (!future.isSuccess()) {
-                                    m.onError(future.cause());
+                    public void accept(long value) {
+                        onRequest(forward, emitter, value);
+                    }
+                    
+                    protected void onRequest(boolean forward, FluxSink<V> emitter, long n) {
+                        instance.getAsync(currentIndex).onComplete((value, e) -> {
+                                if (e != null) {
+                                    emitter.error(e);
                                     return;
                                 }
-                                
-                                V value = future.getNow();
+
                                 if (value != null) {
-                                    m.onNext(value);
+                                    emitter.next(value);
                                     if (forward) {
                                         currentIndex++;
                                     } else {
                                         currentIndex--;
                                     }
                                 }
-                                
+
                                 if (value == null) {
-                                    m.onComplete();
+                                    emitter.complete();
                                     return;
                                 }
                                 if (n-1 == 0) {
                                     return;
                                 }
-                                onRequest(n-1);
-                            }
+                                onRequest(forward, emitter, n-1);
                         });
                     }
                 });
+                
             }
 
-        };
+        });
     }
     
     public Publisher<Boolean> addAll(Publisher<? extends V> c) {
@@ -113,7 +118,7 @@ public class RedissonListReactive<V> {
 
             @Override
             public RFuture<Boolean> add(Object o) {
-                return instance.addAsync((V)o);
+                return instance.addAsync((V) o);
             }
 
         }.addAll(c);

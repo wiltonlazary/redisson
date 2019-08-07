@@ -1,5 +1,5 @@
 /**
- * Copyright 2018 Nikita Koksharov
+ * Copyright (c) 2013-2019 Nikita Koksharov
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -15,13 +15,16 @@
  */
 package org.redisson.reactive;
 
-import org.reactivestreams.Publisher;
+import java.util.concurrent.Callable;
+
 import org.redisson.RedissonScoredSortedSet;
 import org.redisson.api.RFuture;
 import org.redisson.api.RScoredSortedSetAsync;
 import org.redisson.client.RedisClient;
 import org.redisson.client.codec.Codec;
 import org.redisson.client.protocol.decoder.ListScanResult;
+
+import reactor.core.publisher.Flux;
 
 /**
  * 
@@ -48,33 +51,51 @@ public class RedissonScoredSortedSetReactive<V>  {
     private RedissonScoredSortedSetReactive(Codec codec, CommandReactiveExecutor commandExecutor, String name, RScoredSortedSetAsync<V> instance) {
         this.instance = instance;
     }
-
-    private Publisher<V> scanIteratorReactive(final String pattern, final int count) {
-        return new SetReactiveIterator<V>() {
+    
+    public Flux<V> takeFirstElements() {
+        return ElementsStream.takeElements(new Callable<RFuture<V>>() {
             @Override
-            protected RFuture<ListScanResult<Object>> scanIterator(final RedisClient client, final long nextIterPos) {
-                return ((RedissonScoredSortedSet<V>)instance).scanIteratorAsync(client, nextIterPos, pattern, count);
+            public RFuture<V> call() throws Exception {
+                return instance.takeFirstAsync();
             }
-        };
+        });
+    }
+    
+    public Flux<V> takeLastElements() {
+        return ElementsStream.takeElements(new Callable<RFuture<V>>() {
+            @Override
+            public RFuture<V> call() throws Exception {
+                return instance.takeLastAsync();
+            }
+        });
+    }
+
+    private Flux<V> scanIteratorReactive(String pattern, int count) {
+        return Flux.create(new SetReactiveIterator<V>() {
+            @Override
+            protected RFuture<ListScanResult<Object>> scanIterator(RedisClient client, long nextIterPos) {
+                return ((RedissonScoredSortedSet<V>) instance).scanIteratorAsync(client, nextIterPos, pattern, count);
+            }
+        });
     }
 
     public String getName() {
-        return ((RedissonScoredSortedSet<V>)instance).getName();
+        return ((RedissonScoredSortedSet<V>) instance).getName();
     }
     
-    public Publisher<V> iterator() {
+    public Flux<V> iterator() {
         return scanIteratorReactive(null, 10);
     }
 
-    public Publisher<V> iterator(String pattern) {
+    public Flux<V> iterator(String pattern) {
         return scanIteratorReactive(pattern, 10);
     }
 
-    public Publisher<V> iterator(int count) {
+    public Flux<V> iterator(int count) {
         return scanIteratorReactive(null, count);
     }
 
-    public Publisher<V> iterator(String pattern, int count) {
+    public Flux<V> iterator(String pattern, int count) {
         return scanIteratorReactive(pattern, count);
     }
 

@@ -1,5 +1,5 @@
 /**
- * Copyright 2018 Nikita Koksharov
+ * Copyright (c) 2013-2019 Nikita Koksharov
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -27,6 +27,8 @@ import org.redisson.api.RedissonReactiveClient;
 import org.redisson.client.RedisClient;
 import org.redisson.client.protocol.decoder.ListScanResult;
 
+import reactor.core.publisher.Flux;
+
 /**
  * Distributed and concurrent implementation of {@link java.util.Set}
  *
@@ -43,12 +45,12 @@ public class RedissonSetReactive<V> {
         this.instance = instance;
         this.redisson = redisson;
     }
-    
+
     public Publisher<Boolean> addAll(Publisher<? extends V> c) {
         return new PublisherAdder<Object>() {
             @Override
             public RFuture<Boolean> add(Object e) {
-                return instance.addAsync((V)e);
+                return instance.addAsync((V) e);
             }
         }.addAll(c);
     }
@@ -61,41 +63,41 @@ public class RedissonSetReactive<V> {
         return iterator(pattern, 10);
     }
 
-    public Publisher<V> iterator(final String pattern, final int count) {
-        return new SetReactiveIterator<V>() {
+    public Publisher<V> iterator(String pattern, int count) {
+        return Flux.create(new SetReactiveIterator<V>() {
             @Override
             protected RFuture<ListScanResult<Object>> scanIterator(RedisClient client, long nextIterPos) {
-                return ((RedissonSet)instance).scanIteratorAsync(instance.getName(), client, nextIterPos, pattern, count);
+                return ((RedissonSet) instance).scanIteratorAsync(instance.getName(), client, nextIterPos, pattern, count);
             }
-        };
+        });
     }
 
     public Publisher<V> iterator() {
         return iterator(null, 10);
-    }
+}
     
     public RPermitExpirableSemaphoreReactive getPermitExpirableSemaphore(V value) {
-        String name = ((RedissonSet<V>)instance).getLockName(value, "permitexpirablesemaphore");
+        String name = ((RedissonSet<V>) instance).getLockByValue(value, "permitexpirablesemaphore");
         return redisson.getPermitExpirableSemaphore(name);
     }
 
     public RSemaphoreReactive getSemaphore(V value) {
-        String name = ((RedissonSet<V>)instance).getLockName(value, "semaphore");
+        String name = ((RedissonSet<V>) instance).getLockByValue(value, "semaphore");
         return redisson.getSemaphore(name);
     }
     
     public RLockReactive getFairLock(V value) {
-        String name = ((RedissonSet<V>)instance).getLockName(value, "fairlock");
+        String name = ((RedissonSet<V>) instance).getLockByValue(value, "fairlock");
         return redisson.getFairLock(name);
     }
     
     public RReadWriteLockReactive getReadWriteLock(V value) {
-        String name = ((RedissonSet<V>)instance).getLockName(value, "rw_lock");
+        String name = ((RedissonSet<V>) instance).getLockByValue(value, "rw_lock");
         return redisson.getReadWriteLock(name);
     }
     
     public RLockReactive getLock(V value) {
-        String name = ((RedissonSet<V>)instance).getLockName(value, "lock");
+        String name = ((RedissonSet<V>) instance).getLockByValue(value, "lock");
         return redisson.getLock(name);
     }
     
